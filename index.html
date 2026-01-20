@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Futuris Classless Style Demo</title>
+		<link rel="stylesheet" href="css/futuris.css" />
+	</head>
+	<body>
+		<header>
+			<nav id="site-nav" aria-label="Pages"></nav>
+			<h1>Futuris Classless Style</h1>
+			<p>
+				A compact demo page that shows headings, links, tables, code, and
+				forms using the classless stylesheet.
+			</p>
+			<section aria-label="Status modules">
+				<article>
+					<span aria-hidden="true">
+						<img src="icons/status-network-transmit-receive.svg" alt="" />
+					</span>
+					<div>
+						<p>Signal</p>
+						<p><strong>Live uplink</strong></p>
+						<p>0.97ms latency</p>
+					</div>
+				</article>
+				<article>
+					<span aria-hidden="true">
+						<img src="icons/device-computer.svg" alt="" />
+					</span>
+					<div>
+						<p>Core</p>
+						<p><strong>Neon kernel</strong></p>
+						<p>3 nodes active</p>
+					</div>
+				</article>
+				<article>
+					<span aria-hidden="true">
+						<img src="icons/status-security-high.svg" alt="" />
+					</span>
+					<div>
+						<p>Shield</p>
+						<p><strong>Encrypted</strong></p>
+						<p>99.9% integrity</p>
+					</div>
+				</article>
+			</section>
+		</header>
+
+		<div id="layout">
+			<nav>
+				<h2>Sections</h2>
+				<ul id="toc"></ul>
+			</nav>
+			<main>
+				<section>
+					<h2>
+						<img src="icons/action-insert-link.svg" alt="" />
+						Link Style
+					</h2>
+					<p>
+						This is a <a href="https://example.com">link example</a> with
+						<code>inline code</code> inside.
+					</p>
+				</section>
+				<section>
+					<h2>
+						<img src="icons/action-format-text-bold.svg" alt="" />
+						Typography
+					</h2>
+					<p>
+						Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec
+						vulputate, velit sit amet laoreet sodales, arcu risus pulvinar
+						nibh, at vulputate odio sapien in ante.
+					</p>
+					<blockquote>
+						<p>
+							Classless doesn’t mean characterless. Bold colors and sharp
+							contrast can still shine through plain elements.
+						</p>
+					</blockquote>
+					<h3>Subheading</h3>
+					<p>
+						Use <strong>bold</strong>, <em>italics</em>, and
+						<mark>highlighted text</mark> to emphasize content.
+					</p>
+					<hr />
+				</section>
+
+				<section>
+					<h2>
+						<img src="icons/action-list-add.svg" alt="" />
+						Lists
+					</h2>
+					<h3>Unordered</h3>
+					<ul>
+						<li>Signal green accents</li>
+						<li>Neon secondary palette</li>
+						<li>Display typography for headings</li>
+					</ul>
+					<h3>Ordered</h3>
+					<ol>
+						<li>Build the structure</li>
+						<li>Apply the classless theme</li>
+						<li>Ship the demo</li>
+					</ol>
+				</section>
+
+				<section>
+					<h2>
+						<img src="icons/application-utilities-terminal.svg" alt="" />
+						Code Blocks
+					</h2>
+					<h3>Inline and block code</h3>
+					<p>Inline code: <code>npm run build</code></p>
+					<pre><code>function greet(name) {
+  return `Hello, ${name}!`;
+}
+
+console.log(greet("Futuris"));
+</code></pre>
+				</section>
+
+				<section>
+					<h2>
+						<img src="icons/mime-x-office-spreadsheet.svg" alt="" />
+						Tables
+					</h2>
+					<h3>Palette tokens</h3>
+					<table>
+						<thead>
+							<tr>
+								<th>Signal</th>
+								<th>Hex</th>
+								<th>Role</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>Primary</td>
+								<td>#00ff00</td>
+								<td>Highlights</td>
+							</tr>
+							<tr>
+								<td>Secondary</td>
+								<td>#9673ff</td>
+								<td>Headings</td>
+							</tr>
+							<tr>
+								<td>Additional</td>
+								<td>#ff3719</td>
+								<td>Alerts</td>
+							</tr>
+						</tbody>
+					</table>
+				</section>
+
+				<section>
+					<h2>
+						<img src="icons/action-document-new.svg" alt="" />
+						Form Elements
+					</h2>
+					<h3>Inputs</h3>
+					<form>
+						<label for="name">Name</label>
+						<input id="name" name="name" type="text" placeholder="Ada Lovelace" />
+
+						<label for="topic">Topic</label>
+						<select id="topic" name="topic">
+							<option>Visual design</option>
+							<option>Documentation</option>
+							<option>Tooling</option>
+						</select>
+
+						<label for="message">Message</label>
+						<textarea id="message" name="message" placeholder="Say hello..."></textarea>
+
+						<button type="submit">Send</button>
+					</form>
+				</section>
+
+				<section>
+					<h2>
+						<img src="icons/action-view-fullscreen.svg" alt="" />
+						Details
+					</h2>
+					<h3>Expandable notes</h3>
+					<details>
+						<summary>Expandable notes</summary>
+						<p>
+							This section demonstrates the styling for details and summary
+							elements without any classes.
+						</p>
+					</details>
+				</section>
+			</main>
+		</div>
+
+		<script src="js/futuris.js"></script>
+	</body>
+</html>

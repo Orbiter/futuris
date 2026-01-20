@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Futuris Finder</title>
+		<link rel="stylesheet" href="css/futuris.css" />
+	</head>
+	<body>
+		<header>
+			<nav id="site-nav" aria-label="Pages"></nav>
+			<h1>Virtual File System</h1>
+			<p>
+				A Finder-style browser powered by the Futuris virtual file system.
+			</p>
+			<section aria-label="Status modules">
+				<article>
+					<span aria-hidden="true">
+						<img src="icons/application-system-file-manager.svg" alt="" />
+					</span>
+					<div>
+						<p>Volume</p>
+						<p><strong>Root mount</strong></p>
+						<p>IndexedDB</p>
+					</div>
+				</article>
+				<article>
+					<span aria-hidden="true">
+						<img src="icons/status-folder-open.svg" alt="" />
+					</span>
+					<div>
+						<p>Nodes</p>
+						<p><strong>Tree view</strong></p>
+						<p>Recursive list</p>
+					</div>
+				</article>
+				<article>
+					<span aria-hidden="true">
+						<img src="icons/action-document-open-recent.svg" alt="" />
+					</span>
+					<div>
+						<p>Files</p>
+						<p><strong>Quick actions</strong></p>
+						<p>Upload, download</p>
+					</div>
+				</article>
+			</section>
+		</header>
+
+		<div id="layout">
+			<main>
+				<section>
+					<h2>
+						<img src="icons/application-system-file-manager.svg" alt="" />
+						Root Browser
+					</h2>
+					<div id="finder-window" aria-label="File system browser">
+						<div id="finder-titlebar">
+							<div id="finder-controls" aria-hidden="true">
+								<span></span>
+								<span></span>
+								<span></span>
+							</div>
+							<div id="finder-path">/</div>
+							<div id="finder-toolbar">
+								<button type="button" id="finder-create-folder">New Folder</button>
+								<button type="button" id="finder-upload-button">Upload File</button>
+								<input type="file" id="finder-upload-input" />
+							</div>
+						</div>
+						<div id="finder-body">
+							<div>
+								<ul id="finder-list" aria-label="Root contents"></ul>
+								<p id="finder-empty">No files yet. Upload a file or create a folder.</p>
+							</div>
+							<div id="finder-preview">
+								<h3 id="finder-preview-title">Preview</h3>
+								<div id="finder-preview-body">
+									<p>Select a .txt or .md file to preview.</p>
+								</div>
+							</div>
+						</div>
+					</div>
+				</section>
+			</main>
+		</div>
+
+		<script src="js/futuris.js"></script>
+		<script src="js/vfs.js"></script>
+		<script src="js/highlight.min.js"></script>
+		<script src="js/finder.js"></script>
+	</body>
+</html>

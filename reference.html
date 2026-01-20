@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Futuris Reference</title>
+		<link rel="stylesheet" href="css/futuris.css" />
+	</head>
+	<body>
+		<header>
+			<nav id="site-nav" aria-label="Pages"></nav>
+			<h1>Reference Sheet</h1>
+			<p>
+				This page shares the same classless theme and headline navigation,
+				but focuses on a compact reference view.
+			</p>
+			<section aria-label="Status modules">
+				<article>
+					<span aria-hidden="true">
+						<img src="icons/category-preferences-desktop.svg" alt="" />
+					</span>
+					<div>
+						<p>Atlas</p>
+						<p><strong>Interface map</strong></p>
+						<p>3 layers tagged</p>
+					</div>
+				</article>
+				<article>
+					<span aria-hidden="true">
+						<img src="icons/action-document-open-recent.svg" alt="" />
+					</span>
+					<div>
+						<p>Log</p>
+						<p><strong>Quick recall</strong></p>
+						<p>27 recent ops</p>
+					</div>
+				</article>
+				<article>
+					<span aria-hidden="true">
+						<img src="icons/status-dialog-information.svg" alt="" />
+					</span>
+					<div>
+						<p>Status</p>
+						<p><strong>Readout</strong></p>
+						<p>Stable mode</p>
+					</div>
+				</article>
+			</section>
+		</header>
+
+		<div id="layout">
+			<nav>
+				<h2>Sections</h2>
+				<ul id="toc"></ul>
+			</nav>
+
+			<main>
+				<section>
+					<h2>
+						<img src="icons/application-preferences-desktop-theme.svg" alt="" />
+						Palette
+					</h2>
+					<h3>Primary signals</h3>
+					<p>
+						Use the neon green for emphasis, amber for headings, and dark grey
+						for structural blocks.
+					</p>
+					<table>
+						<thead>
+							<tr>
+								<th>Token</th>
+								<th>Color</th>
+								<th>Usage</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>Primary</td>
+								<td>#00ff00</td>
+								<td>Highlights</td>
+							</tr>
+							<tr>
+								<td>Amber</td>
+								<td>#ffb000</td>
+								<td>Headlines</td>
+							</tr>
+							<tr>
+								<td>Grey</td>
+								<td>#3a3a3a</td>
+								<td>Panels</td>
+							</tr>
+						</tbody>
+					</table>
+				</section>
+
+				<section>
+					<h2>
+						<img src="icons/action-insert-object.svg" alt="" />
+						Components
+					</h2>
+					<h3>Buttons and inputs</h3>
+					<form>
+						<label for="email">Email</label>
+						<input id="email" type="email" placeholder="name@example.com" />
+						<label for="note">Note</label>
+						<textarea id="note" placeholder="Short message..."></textarea>
+						<button type="submit">Submit</button>
+					</form>
+				</section>
+
+				<section>
+					<h2>
+						<img src="icons/action-help-about.svg" alt="" />
+						Notes
+					</h2>
+					<h3>Blockquote</h3>
+					<blockquote>
+						<p>
+							The best pages are clear, direct, and give visual hierarchy
+							without decorative fluff.
+						</p>
+					</blockquote>
+				</section>
+			</main>
+		</div>
+
+		<script src="js/futuris.js"></script>
+	</body>
+</html>

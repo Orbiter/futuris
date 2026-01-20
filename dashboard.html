@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Futuris Dashboard</title>
+		<link rel="stylesheet" href="css/futuris.css" />
+	</head>
+	<body>
+		<header>
+			<nav id="site-nav" aria-label="Pages"></nav>
+			<h1>Forecast Dashboard</h1>
+			<p>
+				A time-series prediction snapshot with trends, KPIs, and model status
+				using only the existing classless style.
+			</p>
+			<section aria-label="Status modules">
+				<article>
+					<span aria-hidden="true">
+						<img src="icons/status-sync-synchronizing.svg" alt="" />
+					</span>
+					<div>
+						<p>Stream</p>
+						<p><strong>Sync active</strong></p>
+						<p>Last pulse 16s</p>
+					</div>
+				</article>
+				<article>
+					<span aria-hidden="true">
+						<img src="icons/status-network-transmit.svg" alt="" />
+					</span>
+					<div>
+						<p>Uplink</p>
+						<p><strong>142 Mbps</strong></p>
+						<p>Stable corridor</p>
+					</div>
+				</article>
+				<article>
+					<span aria-hidden="true">
+						<img src="icons/status-task-due.svg" alt="" />
+					</span>
+					<div>
+						<p>Cycle</p>
+						<p><strong>Next run</strong></p>
+						<p>In 3h 14m</p>
+					</div>
+				</article>
+			</section>
+		</header>
+
+		<div id="layout">
+			<nav>
+				<h2>Sections</h2>
+				<ul id="toc"></ul>
+			</nav>
+			<main>
+				<section>
+					<h2>
+						<img src="icons/action-system-search.svg" alt="" />
+						Controls
+					</h2>
+					<form>
+						<div class="row-4">
+							<div>
+								<label for="range">Date range</label>
+								<select id="range" name="range">
+									<option>Last 7 days</option>
+									<option selected>Last 30 days</option>
+									<option>Last 90 days</option>
+								</select>
+							</div>
+
+							<div>
+								<label for="series">Series</label>
+								<select id="series" name="series">
+									<option selected>Daily signups</option>
+									<option>Revenue</option>
+									<option>Churn rate</option>
+								</select>
+							</div>
+
+							<div>
+								<label for="horizon">Forecast horizon</label>
+								<select id="horizon" name="horizon">
+									<option>7 days</option>
+									<option selected>14 days</option>
+									<option>30 days</option>
+								</select>
+							</div>
+
+							<div>
+								<label>&nbsp;</label>
+								<button type="button">Apply</button>
+							</div>
+						</div>
+					</form>
+				</section>
+
+				<section>
+					<h2>
+						<img src="icons/application-utilities-system-monitor.svg" alt="" />
+						Key Metrics
+					</h2>
+					<div class="row-4">
+						<article>
+							<h3>
+								<img src="icons/status-network-receive.svg" alt="" />
+								Current daily avg
+							</h3>
+							<p><strong>4,820</strong></p>
+							<p>+6.2% vs last week</p>
+						</article>
+						<article>
+							<h3>
+								<img src="icons/action-go-up.svg" alt="" />
+								Forecast mean (14d)
+							</h3>
+							<p><strong>5,310</strong></p>
+							<p>+10.1% expected</p>
+						</article>
+						<article class="span-2">
+							<h3>
+								<img src="icons/action-view-sort-ascending.svg" alt="" />
+								Prediction interval
+							</h3>
+							<p><strong>4,900 - 5,780</strong></p>
+							<p>90% confidence band</p>
+						</article>
+					</div>
+				</section>
+
+				<section>
+					<h2>
+						<img src="icons/action-view-refresh.svg" alt="" />
+						Time-Series Forecast
+					</h2>
+					<figure>
+						<div id="forecast-chart" aria-label="Time-series forecast chart"></div>
+						<figcaption>
+							Observed values with a 14-day prediction and confidence band.
+						</figcaption>
+					</figure>
+				</section>
+
+				<section>
+					<h2>
+						<img src="icons/action-document-properties.svg" alt="" />
+						Model Notes
+					</h2>
+					<details open>
+						<summary>Latest training run</summary>
+						<ul>
+							<li>Model: Prophet v2.1</li>
+							<li>Last trained: 2024-07-18 02:40 UTC</li>
+							<li>MAPE: 6.8%</li>
+							<li>Drift check: No anomalies detected</li>
+						</ul>
+					</details>
+				</section>
+
+				<section>
+					<h2>
+						<img src="icons/status-dialog-warning.svg" alt="" />
+						Upcoming Risk Windows
+					</h2>
+					<ol>
+						<li>Aug 02 - Aug 04: Promo campaign uplift expected.</li>
+						<li>Aug 11 - Aug 12: Billing cycle churn spike.</li>
+						<li>Aug 19 - Aug 21: Seasonality dip.</li>
+					</ol>
+				</section>
+
+				<section>
+					<h2>
+						<img src="icons/mime-x-office-spreadsheet.svg" alt="" />
+						Forecast Table
+					</h2>
+					<table>
+						<thead>
+							<tr>
+								<th>Date</th>
+								<th>Prediction</th>
+								<th>Lower</th>
+								<th>Upper</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>2024-07-19</td>
+								<td>5,020</td>
+								<td>4,780</td>
+								<td>5,260</td>
+							</tr>
+							<tr>
+								<td>2024-07-20</td>
+								<td>5,080</td>
+								<td>4,840</td>
+								<td>5,320</td>
+							</tr>
+							<tr>
+								<td>2024-07-21</td>
+								<td>5,120</td>
+								<td>4,880</td>
+								<td>5,360</td>
+							</tr>
+							<tr>
+								<td>2024-07-22</td>
+								<td>5,180</td>
+								<td>4,940</td>
+								<td>5,420</td>
+							</tr>
+							<tr>
+								<td>2024-07-23</td>
+								<td>5,240</td>
+								<td>5,000</td>
+								<td>5,480</td>
+							</tr>
+						</tbody>
+					</table>
+				</section>
+			</main>
+		</div>
+
+		<script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
+		<script>
+			const observedDates = [
+				"2024-06-20",
+				"2024-06-22",
+				"2024-06-24",
+				"2024-06-26",
+				"2024-06-28",
+				"2024-06-30",
+				"2024-07-02",
+				"2024-07-04",
+				"2024-07-06",
+				"2024-07-08",
+				"2024-07-10",
+				"2024-07-12",
+				"2024-07-14",
+				"2024-07-16",
+				"2024-07-18"
+			];
+			const observedValues = [
+				4200,
+				4320,
+				4480,
+				4390,
+				4510,
+				4630,
+				4720,
+				4680,
+				4800,
+				4920,
+				4890,
+				5010,
+				5100,
+				5050,
+				5180
+			];
+			const forecastDates = [
+				"2024-07-18",
+				"2024-07-20",
+				"2024-07-22",
+				"2024-07-24",
+				"2024-07-26",
+				"2024-07-28",
+				"2024-07-30",
+				"2024-08-01"
+			];
+			const forecastValues = [5180, 5250, 5310, 5360, 5420, 5490, 5550, 5620];
+			const lowerBand = [5010, 5080, 5140, 5190, 5240, 5310, 5370, 5440];
+			const upperBand = [5350, 5420, 5480, 5530, 5600, 5670, 5730, 5800];
+
+			const observedTrace = {
+				x: observedDates,
+				y: observedValues,
+				mode: "lines+markers",
+				name: "Observed",
+				line: { width: 2 }
+			};
+			const forecastTrace = {
+				x: forecastDates,
+				y: forecastValues,
+				mode: "lines+markers",
+				name: "Forecast",
+				line: { width: 2, dash: "dot" }
+			};
+			const bandLower = {
+				x: forecastDates,
+				y: lowerBand,
+				mode: "lines",
+				line: { width: 0 },
+				showlegend: false,
+				hoverinfo: "skip"
+			};
+			const bandUpper = {
+				x: forecastDates,
+				y: upperBand,
+				mode: "lines",
+				fill: "tonexty",
+				fillcolor: "rgba(0, 255, 0, 0.15)",
+				line: { width: 0 },
+				name: "Confidence",
+				hoverinfo: "skip"
+			};
+
+			const layout = {
+				margin: { t: 40, r: 30, b: 40, l: 50 },
+				xaxis: { title: "Date" },
+				yaxis: { title: "Daily signups" },
+				legend: { orientation: "h", y: 1.1, x: 0 }
+			};
+
+			Plotly.newPlot(
+				"forecast-chart",
+				[bandLower, bandUpper, observedTrace, forecastTrace],
+				layout,
+				{ displayModeBar: false, responsive: true }
+			);
+		</script>
+		<script src="js/futuris.js"></script>
+	</body>
+</html>
