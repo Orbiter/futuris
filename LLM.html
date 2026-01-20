@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Futuris LLM Configuration</title>
+		<link rel="stylesheet" href="css/futuris.css" />
+	</head>
+	<body>
+		<header>
+			<nav id="site-nav" aria-label="Pages"></nav>
+			<h1>LLM Configuration</h1>
+			<p>
+				Live listing of models served from the default LLM API endpoint at
+				<code>http://localhost:11434</code>.
+			</p>
+			<section aria-label="Status modules">
+				<article>
+					<span aria-hidden="true">
+						<img src="icons/place-network-server.svg" alt="" />
+					</span>
+					<div>
+						<p>Endpoint</p>
+						<p><strong>Localhost</strong></p>
+						<p>Port 11434</p>
+					</div>
+				</article>
+				<article>
+					<span aria-hidden="true">
+						<img src="icons/status-sync-synchronizing.svg" alt="" />
+					</span>
+					<div>
+						<p>Refresh</p>
+						<p><strong>On demand</strong></p>
+						<p>Manual reload</p>
+					</div>
+				</article>
+				<article>
+					<span aria-hidden="true">
+						<img src="icons/application-system-software-update.svg" alt="" />
+					</span>
+					<div>
+						<p>Source</p>
+						<p><strong>/v1/models</strong></p>
+						<p>OpenAI compatible</p>
+					</div>
+				</article>
+			</section>
+		</header>
+
+		<div id="layout">
+			<main>
+				<section>
+					<h2>
+						<img src="icons/mime-x-office-spreadsheet.svg" alt="" />
+						Models
+					</h2>
+					<form id="llm-config-form">
+						<label for="apihost">API host</label>
+						<input id="apihost" name="apihost" type="url" />
+
+						<label for="systemprompt">System prompt</label>
+						<textarea id="systemprompt" name="systemprompt"></textarea>
+
+						<button type="submit">Save &amp; Reload</button>
+					</form>
+					<p id="model-status">Loading models...</p>
+					<button type="button" id="refresh-models">Refresh list</button>
+					<table id="model-table" hidden>
+						<thead>
+							<tr>
+								<th>Model</th>
+								<th>Owner</th>
+								<th>Created</th>
+							</tr>
+						</thead>
+						<tbody id="model-table-body"></tbody>
+					</table>
+				</section>
+			</main>
+		</div>
+
+		<script src="js/llm.js"></script>
+		<script src="js/vfs.js"></script>
+		<script src="js/models.js"></script>
+		<script src="js/futuris.js"></script>
+	</body>
+</html>
