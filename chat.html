@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Futuris Chat</title>
+		<link rel="stylesheet" href="css/futuris.css" />
+		<style>
+			.chat-shell {
+				background: rgba(12, 16, 26, 0.95);
+				border: 1px solid var(--color-border);
+				border-radius: 14px;
+				overflow: hidden;
+				box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+				display: flex;
+				flex-direction: column;
+				min-height: 520px;
+			}
+
+			.chat-header {
+				display: flex;
+				align-items: center;
+				gap: 12px;
+				padding: 12px 16px;
+				border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+				background: linear-gradient(180deg, rgba(32, 40, 56, 0.9), rgba(18, 24, 38, 0.9));
+			}
+
+			.chat-status {
+				margin-left: auto;
+				font-size: 0.85rem;
+				color: rgba(230, 240, 255, 0.7);
+			}
+
+			.chat-log {
+				padding: 16px;
+				display: flex;
+				flex-direction: column;
+				gap: 12px;
+				overflow-y: auto;
+				flex: 1;
+				background: rgba(9, 12, 20, 0.5);
+			}
+
+			.chat-message {
+				display: flex;
+				flex-direction: column;
+				gap: 6px;
+				max-width: 78%;
+			}
+
+			.chat-message--user {
+				align-self: flex-end;
+				text-align: right;
+			}
+
+			.chat-message--assistant {
+				align-self: flex-start;
+			}
+
+			.chat-role {
+				font-size: 0.75rem;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+				color: rgba(230, 240, 255, 0.6);
+			}
+
+			.chat-bubble {
+				padding: 10px 12px;
+				border-radius: 10px;
+				background: rgba(15, 20, 34, 0.9);
+				border: 1px solid rgba(255, 255, 255, 0.08);
+				color: var(--color-foreground);
+				white-space: pre-wrap;
+				word-break: break-word;
+				font-family: var(--font-mono);
+				font-size: 0.9rem;
+			}
+
+			.chat-message--user .chat-bubble {
+				background: rgba(53, 245, 255, 0.16);
+				border-color: rgba(53, 245, 255, 0.4);
+			}
+
+			.chat-form {
+				padding: 14px 16px;
+				border-top: 1px solid rgba(255, 255, 255, 0.08);
+				display: grid;
+				gap: 10px;
+				background: rgba(12, 16, 26, 0.95);
+			}
+
+			.chat-form textarea {
+				min-height: 96px;
+				resize: vertical;
+				background: rgba(10, 12, 20, 0.85);
+				border: 1px solid rgba(255, 255, 255, 0.1);
+				border-radius: 8px;
+				color: var(--color-foreground);
+				padding: 12px;
+				font-family: var(--font-mono);
+				font-size: 0.95rem;
+			}
+
+			.chat-form textarea:focus {
+				outline: 1px solid var(--color-primary);
+			}
+
+			.chat-form-actions {
+				display: flex;
+				align-items: center;
+				gap: 12px;
+			}
+
+			.chat-form-actions select,
+			#chat-model,
+			.chat-form-actions button {
+				padding: 6px 12px;
+				font-size: 0.85rem;
+				background: rgba(15, 20, 34, 0.9);
+				border: 1px solid var(--color-border);
+				color: var(--color-foreground);
+				border-radius: 6px;
+			}
+
+			#chat-model {
+				min-width: 220px;
+			}
+
+			.chat-form-actions button:hover,
+			.chat-form-actions select:hover,
+			#chat-model:hover {
+				border-color: var(--color-primary);
+			}
+
+			@media (max-width: 900px) {
+				.chat-message {
+					max-width: 100%;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<header>
+			<nav id="site-nav" aria-label="Pages"></nav>
+			<h1>Chat</h1>
+			<p>Simple chat interface wired to the LLM settings stored in the VFS.</p>
+			<section aria-label="Status modules">
+				<article>
+					<span aria-hidden="true">
+						<img src="icons/status-sync-synchronizing.svg" alt="" />
+					</span>
+					<div>
+						<p>Config</p>
+						<p><strong>config.json</strong></p>
+						<p>VFS stored</p>
+					</div>
+				</article>
+				<article>
+					<span aria-hidden="true">
+						<img src="icons/place-network-server.svg" alt="" />
+					</span>
+					<div>
+						<p>Endpoint</p>
+						<p><strong>API host</strong></p>
+						<p>From config</p>
+					</div>
+				</article>
+				<article>
+					<span aria-hidden="true">
+						<img src="icons/action-mail-send.svg" alt="" />
+					</span>
+					<div>
+						<p>Session</p>
+						<p><strong>Streaming</strong></p>
+						<p>Chat history</p>
+					</div>
+				</article>
+			</section>
+		</header>
+
+		<div id="layout">
+			<main>
+				<section>
+					<h2>
+						<img src="icons/application-help-browser.svg" alt="" />
+						Assistant
+					</h2>
+					<div class="chat-shell">
+						<div class="chat-header">
+							<strong>Session</strong>
+							<span id="chat-status" class="chat-status">Loading configuration...</span>
+						</div>
+						<div id="chat-log" class="chat-log" aria-live="polite"></div>
+						<form id="chat-form" class="chat-form">
+							<label for="chat-input">Message</label>
+							<textarea id="chat-input" name="chat-input" spellcheck="true"></textarea>
+							<div class="chat-form-actions">
+								<label for="chat-model">Model</label>
+								<div id="chat-model" aria-live="polite"></div>
+								<button type="submit" id="chat-send">Send</button>
+							</div>
+						</form>
+					</div>
+				</section>
+			</main>
+		</div>
+
+		<script src="js/llm.js"></script>
+		<script src="js/vfs.js"></script>
+		<script src="js/chat.js"></script>
+		<script src="js/futuris.js"></script>
+	</body>
+</html>

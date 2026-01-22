@@ -6,9 +6,16 @@
 	const uploadInput = document.getElementById("finder-upload-input");
 	const previewTitle = document.getElementById("finder-preview-title");
 	const previewBody = document.getElementById("finder-preview-body");
+	const editorOverlay = document.getElementById("vfs-editor");
+	const editorTitle = document.getElementById("vfs-editor-title");
+	const editorPathLabel = document.getElementById("vfs-editor-path");
+	const editorInput = document.getElementById("vfs-editor-input");
+	const editorDiscard = document.getElementById("vfs-editor-discard");
+	const editorSave = document.getElementById("vfs-editor-save");
 	const expandedPaths = new Set(["/"]);
 	let selectedPath = null;
 	let activeDropTarget = null;
+	let editorPath = null;
 
 	if (
 		!finderList ||
@@ -16,7 +23,13 @@
 		!uploadButton ||
 		!createFolderButton ||
 		!previewTitle ||
-		!previewBody
+		!previewBody ||
+		!editorOverlay ||
+		!editorTitle ||
+		!editorPathLabel ||
+		!editorInput ||
+		!editorDiscard ||
+		!editorSave
 	) {
 		return;
 	}
@@ -150,6 +163,19 @@
 			actions.dataset.role = "actions";
 
 			if (child.type === "file") {
+				const edit = document.createElement("button");
+				edit.type = "button";
+				edit.dataset.action = "edit";
+				edit.setAttribute("draggable", "false");
+				edit.title = "Edit file";
+				const editIcon = document.createElement("img");
+				editIcon.alt = "";
+				editIcon.setAttribute("draggable", "false");
+				editIcon.dataset.icon = "edit";
+				editIcon.src = "icons/action-document-open.svg";
+				edit.appendChild(editIcon);
+				actions.appendChild(edit);
+
 				const download = document.createElement("button");
 				download.type = "button";
 				download.dataset.action = "download";
@@ -251,6 +277,30 @@
 	const showPreviewPlaceholder = (message) => {
 		previewTitle.textContent = "Preview";
 		previewBody.innerHTML = `<p>${escapeHtml(message)}</p>`;
+	};
+
+	const openEditor = async (path) => {
+		if (!path || path.endsWith("/")) return;
+		try {
+			const vfs = await window.vfsReady;
+			const contents = await vfs.getasync(path);
+			editorPath = path;
+			editorTitle.textContent = "Edit file";
+			editorPathLabel.textContent = path;
+			editorInput.value = contents;
+			editorOverlay.dataset.open = "true";
+			editorOverlay.setAttribute("aria-hidden", "false");
+			editorInput.focus();
+		} catch (error) {
+			window.alert("Unable to load file for editing.");
+		}
+	};
+
+	const closeEditor = () => {
+		editorPath = null;
+		editorOverlay.removeAttribute("data-open");
+		editorOverlay.setAttribute("aria-hidden", "true");
+		editorInput.value = "";
 	};
 
 	const extensionToLanguage = (name) => {
@@ -437,6 +487,11 @@
 			} catch (error) {
 				window.alert("Unable to download file.");
 			}
+			return;
+		}
+
+		if (action === "edit") {
+			openEditor(path);
 		}
 	});
 
@@ -509,6 +564,30 @@
 			activeDropTarget = null;
 		}
 		refreshSoon();
+	});
+
+	editorOverlay.addEventListener("click", (event) => {
+		if (event.target === editorOverlay) {
+			closeEditor();
+		}
+	});
+
+	editorDiscard.addEventListener("click", () => {
+		closeEditor();
+	});
+
+	editorSave.addEventListener("click", async () => {
+		if (!editorPath) {
+			closeEditor();
+			return;
+		}
+		const vfs = await window.vfsReady;
+		await vfs.put(editorPath, editorInput.value);
+		const savedPath = editorPath;
+		closeEditor();
+		if (selectedPath === savedPath) {
+			updatePreview(savedPath);
+		}
 	});
 
 	const clearActiveDrop = () => {

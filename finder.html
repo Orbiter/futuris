@@ -5,6 +5,90 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>Futuris Finder</title>
 		<link rel="stylesheet" href="css/futuris.css" />
+		<style>
+			.finder-editor {
+				position: fixed;
+				inset: 0;
+				background: rgba(6, 8, 14, 0.72);
+				display: none;
+				align-items: center;
+				justify-content: center;
+				z-index: 40;
+			}
+
+			.finder-editor[data-open="true"] {
+				display: flex;
+			}
+
+			.vfs-editor__dialog {
+				width: min(1200px, 98vw);
+				max-height: 95vh;
+				background: rgba(14, 18, 30, 0.98);
+				border: 1px solid var(--color-border);
+				border-radius: 12px;
+				box-shadow: 0 18px 36px rgba(0, 0, 0, 0.45);
+				padding: 16px;
+				display: flex;
+				flex-direction: column;
+				gap: 12px;
+			}
+
+			.vfs-editor__header {
+				display: flex;
+				justify-content: space-between;
+				align-items: baseline;
+				gap: 12px;
+			}
+
+			.vfs-editor__title {
+				margin: 0;
+				font-size: 1rem;
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+			}
+
+			.vfs-editor__path {
+				margin: 0;
+				font-family: var(--font-mono);
+				font-size: 0.8rem;
+				color: rgba(230, 240, 255, 0.65);
+			}
+
+			.vfs-editor__input {
+				min-height: 72vh;
+				resize: vertical;
+				background: rgba(10, 12, 20, 0.85);
+				border: 1px solid rgba(255, 255, 255, 0.1);
+				border-radius: 8px;
+				color: var(--color-foreground);
+				padding: 12px;
+				font-family: var(--font-mono);
+				font-size: 0.9rem;
+			}
+
+			.vfs-editor__input:focus {
+				outline: 1px solid var(--color-primary);
+			}
+
+			.vfs-editor__actions {
+				display: flex;
+				justify-content: flex-end;
+				gap: 8px;
+			}
+
+			.vfs-editor__actions button {
+				padding: 6px 14px;
+				font-size: 0.85rem;
+				background: rgba(15, 20, 34, 0.9);
+				border: 1px solid var(--color-border);
+				color: var(--color-foreground);
+				border-radius: 6px;
+			}
+
+			.vfs-editor__actions button:hover {
+				border-color: var(--color-primary);
+			}
+		</style>
 	</head>
 	<body>
 		<header>
@@ -83,6 +167,26 @@
 					</div>
 				</section>
 			</main>
+		</div>
+
+		<div id="vfs-editor" class="finder-editor" aria-hidden="true">
+			<div
+				id="vfs-editor-dialog"
+				class="vfs-editor__dialog"
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="vfs-editor-title"
+			>
+				<div id="vfs-editor-header" class="vfs-editor__header">
+					<h3 id="vfs-editor-title" class="vfs-editor__title">Edit file</h3>
+					<p id="vfs-editor-path" class="vfs-editor__path"></p>
+				</div>
+				<textarea id="vfs-editor-input" class="vfs-editor__input" spellcheck="false"></textarea>
+				<div id="vfs-editor-actions" class="vfs-editor__actions">
+					<button type="button" id="vfs-editor-discard">discard</button>
+					<button type="button" id="vfs-editor-save">save</button>
+				</div>
+			</div>
 		</div>
 
 		<script src="js/futuris.js"></script>

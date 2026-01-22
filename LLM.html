@@ -5,6 +5,20 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>Futuris LLM Configuration</title>
 		<link rel="stylesheet" href="css/futuris.css" />
+		<style>
+			#model-table input[type="checkbox"] {
+				margin: 0;
+				width: 16px;
+				height: 16px;
+				box-shadow: none;
+			}
+
+			#model-table input[type="checkbox"]:focus,
+			#model-table input[type="checkbox"]:focus-visible {
+				outline: none;
+				box-shadow: none;
+			}
+		</style>
 	</head>
 	<body>
 		<header>
@@ -69,6 +83,7 @@
 					<table id="model-table" hidden>
 						<thead>
 							<tr>
+								<th>Select</th>
 								<th>Model</th>
 								<th>Owner</th>
 								<th>Created</th>

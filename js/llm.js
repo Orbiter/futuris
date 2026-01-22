@@ -110,6 +110,471 @@ function createSusiLLM(options = {}) {
 
     const history = new SusiChatHistory(defaultSystemPrompt);
 
+    const toolLibrary = {
+        get_datetime: {
+            definition: {
+                type: 'function',
+                function: {
+                    name: 'get_datetime',
+                    description: 'Return the current date and time.'
+                }
+            },
+            handler: () => new Date().toLocaleString()
+        },
+        vfs_read_file: {
+            definition: {
+                type: 'function',
+                function: {
+                    name: 'vfs_read_file',
+                    description: 'Read a text file from the virtual file system.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            path: {
+                                type: 'string',
+                                description: 'Absolute VFS path starting with /.'
+                            }
+                        },
+                        required: ['path']
+                    }
+                }
+            },
+            handler: async (toolCall) => {
+                const args = toolCall && toolCall.function ? toolCall.function.arguments : '{}';
+                let parsed = {};
+                try {
+                    parsed = JSON.parse(args || '{}');
+                } catch (error) {
+                    return 'Invalid arguments.';
+                }
+                const path = typeof parsed.path === 'string' ? parsed.path.trim() : '';
+                if (!path || !path.startsWith('/')) {
+                    return 'Invalid path.';
+                }
+                try {
+                    const vfs = await window.vfsReady;
+                    return await vfs.getasync(path);
+                } catch (error) {
+                    return 'Unable to read file.';
+                }
+            }
+        },
+        vfs_list_files: {
+            definition: {
+                type: 'function',
+                function: {
+                    name: 'vfs_list_files',
+                    description: 'List entries in a VFS directory.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            path: {
+                                type: 'string',
+                                description: 'Absolute directory path ending with /. Defaults to /.'
+                            }
+                        }
+                    }
+                }
+            },
+            handler: async (toolCall) => {
+                const args = toolCall && toolCall.function ? toolCall.function.arguments : '{}';
+                let parsed = {};
+                try {
+                    parsed = JSON.parse(args || '{}');
+                } catch (error) {
+                    return 'Invalid arguments.';
+                }
+                let path = typeof parsed.path === 'string' ? parsed.path.trim() : '/';
+                if (!path) path = '/';
+                if (!path.startsWith('/')) {
+                    return 'Invalid path.';
+                }
+                if (!path.endsWith('/')) {
+                    path += '/';
+                }
+                try {
+                    const vfs = await window.vfsReady;
+                    const entries = await vfs.ls(path);
+                    const basePath = path === '/' ? '/' : path;
+                    const formatted = entries
+                        .filter((entry) => !entry.endsWith('/'))
+                        .map((entry) => `${basePath}${entry}`);
+                    return formatted.join('\n');
+                } catch (error) {
+                    return 'Unable to list directory.';
+                }
+            }
+        },
+        vfs_apply_diff: {
+            definition: {
+                type: 'function',
+                function: {
+                    name: 'vfs_apply_diff',
+                    description: 'Apply a unified diff to an existing VFS file (preferred for edits).',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            path: {
+                                type: 'string',
+                                description: 'Absolute file path starting with /.'
+                            },
+                            diff: {
+                                type: 'string',
+                                description: 'Unified diff to apply.'
+                            }
+                        },
+                        required: ['path', 'diff']
+                    }
+                }
+            },
+            handler: async (toolCall) => {
+                const args = toolCall && toolCall.function ? toolCall.function.arguments : '{}';
+                let parsed = {};
+                try {
+                    parsed = JSON.parse(args || '{}');
+                } catch (error) {
+                    return 'Invalid arguments.';
+                }
+                const path = typeof parsed.path === 'string' ? parsed.path.trim() : '';
+                const diff = typeof parsed.diff === 'string' ? parsed.diff : '';
+                if (!path || !path.startsWith('/')) {
+                    return 'Invalid path.';
+                }
+                if (!diff) {
+                    return 'Empty diff.';
+                }
+                try {
+                    const vfs = await window.vfsReady;
+                    await vfs.applyDiff(path, diff);
+                    return 'OK';
+                } catch (error) {
+                    return 'Unable to apply diff.';
+                }
+            }
+        },
+        vfs_write_file: {
+            definition: {
+                type: 'function',
+                function: {
+                    name: 'vfs_write_file',
+                    description: 'Create or overwrite a VFS file with text content.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            path: {
+                                type: 'string',
+                                description: 'Absolute file path starting with /.'
+                            },
+                            content: {
+                                type: 'string',
+                                description: 'Text content to write.'
+                            }
+                        },
+                        required: ['path', 'content']
+                    }
+                }
+            },
+            handler: async (toolCall) => {
+                const args = toolCall && toolCall.function ? toolCall.function.arguments : '{}';
+                let parsed = {};
+                try {
+                    parsed = JSON.parse(args || '{}');
+                } catch (error) {
+                    return 'Invalid arguments.';
+                }
+                const path = typeof parsed.path === 'string' ? parsed.path.trim() : '';
+                const content = typeof parsed.content === 'string' ? parsed.content : '';
+                if (!path || !path.startsWith('/') || path.endsWith('/')) {
+                    return 'Invalid path.';
+                }
+                try {
+                    const vfs = await window.vfsReady;
+                    await vfs.put(path, content);
+                    return 'OK';
+                } catch (error) {
+                    return 'Unable to write file.';
+                }
+            }
+        },
+        vfs_rename_file: {
+            definition: {
+                type: 'function',
+                function: {
+                    name: 'vfs_rename_file',
+                    description: 'Rename or move a VFS file.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            from: {
+                                type: 'string',
+                                description: 'Source file path starting with /.'
+                            },
+                            to: {
+                                type: 'string',
+                                description: 'Destination file path starting with /.'
+                            }
+                        },
+                        required: ['from', 'to']
+                    }
+                }
+            },
+            handler: async (toolCall) => {
+                const args = toolCall && toolCall.function ? toolCall.function.arguments : '{}';
+                let parsed = {};
+                try {
+                    parsed = JSON.parse(args || '{}');
+                } catch (error) {
+                    return 'Invalid arguments.';
+                }
+                const from = typeof parsed.from === 'string' ? parsed.from.trim() : '';
+                const to = typeof parsed.to === 'string' ? parsed.to.trim() : '';
+                if (!from || !from.startsWith('/') || from.endsWith('/')) {
+                    return 'Invalid source path.';
+                }
+                if (!to || !to.startsWith('/') || to.endsWith('/')) {
+                    return 'Invalid destination path.';
+                }
+                try {
+                    const vfs = await window.vfsReady;
+                    await vfs.mv(from, to);
+                    return 'OK';
+                } catch (error) {
+                    return 'Unable to rename file.';
+                }
+            }
+        },
+        vfs_delete_file: {
+            definition: {
+                type: 'function',
+                function: {
+                    name: 'vfs_delete_file',
+                    description: 'Delete a VFS file.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            path: {
+                                type: 'string',
+                                description: 'Absolute file path starting with /.'
+                            }
+                        },
+                        required: ['path']
+                    }
+                }
+            },
+            handler: async (toolCall) => {
+                const args = toolCall && toolCall.function ? toolCall.function.arguments : '{}';
+                let parsed = {};
+                try {
+                    parsed = JSON.parse(args || '{}');
+                } catch (error) {
+                    return 'Invalid arguments.';
+                }
+                const path = typeof parsed.path === 'string' ? parsed.path.trim() : '';
+                if (!path || !path.startsWith('/') || path.endsWith('/')) {
+                    return 'Invalid path.';
+                }
+                try {
+                    const vfs = await window.vfsReady;
+                    await vfs.rm(path);
+                    return 'OK';
+                } catch (error) {
+                    return 'Unable to delete file.';
+                }
+            }
+        },
+        vfs_copy_file: {
+            definition: {
+                type: 'function',
+                function: {
+                    name: 'vfs_copy_file',
+                    description: 'Copy a VFS file.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            from: {
+                                type: 'string',
+                                description: 'Source file path starting with /.'
+                            },
+                            to: {
+                                type: 'string',
+                                description: 'Destination file path starting with /.'
+                            }
+                        },
+                        required: ['from', 'to']
+                    }
+                }
+            },
+            handler: async (toolCall) => {
+                const args = toolCall && toolCall.function ? toolCall.function.arguments : '{}';
+                let parsed = {};
+                try {
+                    parsed = JSON.parse(args || '{}');
+                } catch (error) {
+                    return 'Invalid arguments.';
+                }
+                const from = typeof parsed.from === 'string' ? parsed.from.trim() : '';
+                const to = typeof parsed.to === 'string' ? parsed.to.trim() : '';
+                if (!from || !from.startsWith('/') || from.endsWith('/')) {
+                    return 'Invalid source path.';
+                }
+                if (!to || !to.startsWith('/') || to.endsWith('/')) {
+                    return 'Invalid destination path.';
+                }
+                try {
+                    const vfs = await window.vfsReady;
+                    await vfs.cp(from, to);
+                    return 'OK';
+                } catch (error) {
+                    return 'Unable to copy file.';
+                }
+            }
+        },
+        vfs_mkdir: {
+            definition: {
+                type: 'function',
+                function: {
+                    name: 'vfs_mkdir',
+                    description: 'Create a directory in the VFS.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            path: {
+                                type: 'string',
+                                description: 'Absolute directory path starting with / and ending with /.'
+                            }
+                        },
+                        required: ['path']
+                    }
+                }
+            },
+            handler: async (toolCall) => {
+                const args = toolCall && toolCall.function ? toolCall.function.arguments : '{}';
+                let parsed = {};
+                try {
+                    parsed = JSON.parse(args || '{}');
+                } catch (error) {
+                    return 'Invalid arguments.';
+                }
+                let path = typeof parsed.path === 'string' ? parsed.path.trim() : '';
+                if (!path || !path.startsWith('/')) {
+                    return 'Invalid path.';
+                }
+                if (!path.endsWith('/')) {
+                    path += '/';
+                }
+                try {
+                    const vfs = await window.vfsReady;
+                    await vfs.put(path, '');
+                    return 'OK';
+                } catch (error) {
+                    return 'Unable to create directory.';
+                }
+            }
+        },
+        vfs_file_exists: {
+            definition: {
+                type: 'function',
+                function: {
+                    name: 'vfs_file_exists',
+                    description: 'Check if a VFS file exists.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            path: {
+                                type: 'string',
+                                description: 'Absolute file path starting with /.'
+                            }
+                        },
+                        required: ['path']
+                    }
+                }
+            },
+            handler: async (toolCall) => {
+                const args = toolCall && toolCall.function ? toolCall.function.arguments : '{}';
+                let parsed = {};
+                try {
+                    parsed = JSON.parse(args || '{}');
+                } catch (error) {
+                    return 'Invalid arguments.';
+                }
+                const path = typeof parsed.path === 'string' ? parsed.path.trim() : '';
+                if (!path || !path.startsWith('/')) {
+                    return 'Invalid path.';
+                }
+                try {
+                    const vfs = await window.vfsReady;
+                    await vfs.getasync(path);
+                    return 'true';
+                } catch (error) {
+                    return 'false';
+                }
+            }
+        },
+        vfs_grep: {
+            definition: {
+                type: 'function',
+                function: {
+                    name: 'vfs_grep',
+                    description: 'Find files containing a given string in the VFS.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            query: {
+                                type: 'string',
+                                description: 'String to search for.'
+                            }
+                        },
+                        required: ['query']
+                    }
+                }
+            },
+            handler: async (toolCall) => {
+                const args = toolCall && toolCall.function ? toolCall.function.arguments : '{}';
+                let parsed = {};
+                try {
+                    parsed = JSON.parse(args || '{}');
+                } catch (error) {
+                    return 'Invalid arguments.';
+                }
+                const query = typeof parsed.query === 'string' ? parsed.query : '';
+                if (!query) {
+                    return 'Empty query.';
+                }
+                try {
+                    const vfs = await window.vfsReady;
+                    const entries = await vfs.ls('/');
+                    const files = entries.filter((entry) => !entry.endsWith('/'));
+                    const matches = [];
+                    for (const entry of files) {
+                        const path = `/${entry}`;
+                        try {
+                            const contents = await vfs.getasync(path);
+                            if (String(contents || '').includes(query)) {
+                                matches.push(path);
+                            }
+                        } catch (error) {
+                            // skip unreadable entries
+                        }
+                    }
+                    return matches.join('\n');
+                } catch (error) {
+                    return 'Unable to search files.';
+                }
+            }
+        }
+    };
+
+    const listTools = () => Object.values(toolLibrary).map((tool) => tool.definition);
+
+    const runTool = async (toolCall) => {
+        const name = toolCall && toolCall.function ? toolCall.function.name : '';
+        const tool = toolLibrary[name];
+        if (!tool || typeof tool.handler !== 'function') {
+            return `Unsupported tool: ${name || 'unknown'}`;
+        }
+        return await tool.handler(toolCall);
+    };
+
     // Build /v1/chat/completions payload from history + overrides.
     const buildChatPayload = (options = {}) => {
         const model = options.model;
@@ -125,6 +590,8 @@ function createSusiLLM(options = {}) {
         const maxTokens = options.maxTokens;
         const temperature = options.temperature;
         const stopTokens = Array.isArray(options.stopTokens) ? options.stopTokens : null;
+        const tools = Array.isArray(options.tools) ? options.tools : null;
+        const toolChoice = options.toolChoice;
         if (model && (model.startsWith('o4') || model.startsWith('gpt-4.1'))) {
             if (typeof maxTokens === 'number') payload.max_completion_tokens = maxTokens;
         } else {
@@ -132,6 +599,8 @@ function createSusiLLM(options = {}) {
             if (typeof temperature === 'number') payload.temperature = temperature;
             if (stopTokens && stopTokens.length) payload.stop = stopTokens;
         }
+        if (tools && tools.length) payload.tools = tools;
+        if (toolChoice) payload.tool_choice = toolChoice;
         return payload;
     };
 
@@ -323,6 +792,8 @@ function createSusiLLM(options = {}) {
     // Public API surface (single object for easy embedding).
     return {
         history,
+        listTools,
+        runTool,
         buildChatPayload,
         streamChat,
         completeChat,

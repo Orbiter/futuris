@@ -27,6 +27,124 @@ window.vfsReady = new Promise((resolve, reject) => {
 
 let db;
 
+const applyUnifiedDiff = (originalText, diffText) => {
+  const originalEndsWithNewline = originalText.endsWith('\n');
+  const originalLines = originalText.split('\n');
+  const diffLines = diffText.split('\n');
+  const result = [];
+  let origIndex = 0;
+  let i = 0;
+  const hunkHeader = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
+
+  const collectHunkOps = (startIndex) => {
+    const ops = [];
+    let index = startIndex;
+    while (index < diffLines.length && !diffLines[index].startsWith('@@')) {
+      const hunkLine = diffLines[index];
+      if (hunkLine.startsWith(' ') || hunkLine.startsWith('-') || hunkLine.startsWith('+')) {
+        ops.push(hunkLine);
+      }
+      index += 1;
+    }
+    return { ops, nextIndex: index };
+  };
+
+  const hunkFitsAt = (startAt, ops) => {
+    let checkIndex = startAt;
+    for (const op of ops) {
+      if (op.startsWith(' ') || op.startsWith('-')) {
+        const content = op.slice(1);
+        if (originalLines[checkIndex] !== content) {
+          return false;
+        }
+        checkIndex += 1;
+      }
+    }
+    return true;
+  };
+
+  const findHunkStart = (fromIndex, ops, suggestedStart) => {
+    if (Number.isInteger(suggestedStart) && suggestedStart >= fromIndex) {
+      if (hunkFitsAt(suggestedStart, ops)) {
+        return suggestedStart;
+      }
+    }
+    const firstContext = ops.find((op) => op.startsWith(' '));
+    if (!firstContext) {
+      return fromIndex;
+    }
+    const needle = firstContext.slice(1);
+    for (let idx = fromIndex; idx < originalLines.length; idx += 1) {
+      if (originalLines[idx] === needle && hunkFitsAt(idx, ops)) {
+        return idx;
+      }
+    }
+    return -1;
+  };
+
+  while (i < diffLines.length) {
+    const line = diffLines[i];
+    if (
+      line.startsWith('diff --git') ||
+      line.startsWith('index ') ||
+      line.startsWith('--- ') ||
+      line.startsWith('+++ ')
+    ) {
+      i += 1;
+      continue;
+    }
+    const match = line.match(hunkHeader);
+    if (!match) {
+      i += 1;
+      continue;
+    }
+
+    const oldStart = parseInt(match[1], 10) - 1;
+    const { ops, nextIndex } = collectHunkOps(i + 1);
+    const hunkStart = findHunkStart(origIndex, ops, oldStart);
+    if (hunkStart < 0) {
+      throw new Error('Patch context mismatch.');
+    }
+
+    while (origIndex < hunkStart && origIndex < originalLines.length) {
+      result.push(originalLines[origIndex]);
+      origIndex += 1;
+    }
+
+    for (const op of ops) {
+      if (op.startsWith(' ')) {
+        const content = op.slice(1);
+        if (originalLines[origIndex] !== content) {
+          throw new Error('Patch context mismatch.');
+        }
+        result.push(content);
+        origIndex += 1;
+      } else if (op.startsWith('-')) {
+        const content = op.slice(1);
+        if (originalLines[origIndex] !== content) {
+          throw new Error('Patch removal mismatch.');
+        }
+        origIndex += 1;
+      } else if (op.startsWith('+')) {
+        result.push(op.slice(1));
+      }
+    }
+
+    i = nextIndex;
+  }
+
+  while (origIndex < originalLines.length) {
+    result.push(originalLines[origIndex]);
+    origIndex += 1;
+  }
+
+  let patched = result.join('\n');
+  if (originalEndsWithNewline && !patched.endsWith('\n')) {
+    patched += '\n';
+  }
+  return patched;
+};
+
 // Handle the database upgrade event
 openRequest.onupgradeneeded = function (event) {
   const db = event.target.result;
@@ -180,6 +298,18 @@ openRequest.onsuccess = function (event) {
       getRequest.onerror = function (event) {
         console.error(`Error getting entry at ${srcPath}: ${event.target.errorCode}`);
       };
+    },
+    applyDiff: async function (path, diffText) {
+      if (!path.startsWith('/') || path === '' || path.endsWith('/')) {
+        throw new Error('Invalid file path');
+      }
+      if (typeof diffText !== 'string') {
+        throw new Error('Invalid diff');
+      }
+      const current = await this.getasync(path);
+      const next = applyUnifiedDiff(String(current || ''), diffText);
+      await this.put(path, next);
+      return next;
     },
     ls: function (path) {
       // List the contents of a directory at the specified path.

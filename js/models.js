@@ -10,6 +10,8 @@ const llm = createSusiLLM();
 const CONFIG_PATH = "/config.json";
 const DEFAULT_API_HOST = "http://localhost:11434";
 const DEFAULT_SYSTEM_PROMPT = "";
+const DEFAULT_MODEL = "";
+let currentConfig = null;
 
 const setStatus = (message, isError = false) => {
 	statusEl.textContent = message;
@@ -36,18 +38,27 @@ const normalizeModels = (payload) => {
 	return [];
 };
 
-const renderModels = (models) => {
+const renderModels = (models, selectedModel) => {
 	tbodyEl.innerHTML = "";
 	models.forEach((model) => {
 		const row = document.createElement("tr");
+		const selectCell = document.createElement("td");
 		const nameCell = document.createElement("td");
 		const ownerCell = document.createElement("td");
 		const createdCell = document.createElement("td");
+		const modelId = model.id || model.name || "";
+		const checkbox = document.createElement("input");
 
-		nameCell.textContent = model.id || model.name || "—";
+		checkbox.type = "checkbox";
+		checkbox.dataset.modelId = modelId;
+		checkbox.checked = modelId !== "" && modelId === selectedModel;
+		selectCell.appendChild(checkbox);
+
+		nameCell.textContent = modelId || "—";
 		ownerCell.textContent = model.owned_by || model.owner || "—";
 		createdCell.textContent = formatCreated(model.created || model.created_at);
 
+		row.appendChild(selectCell);
 		row.appendChild(nameCell);
 		row.appendChild(ownerCell);
 		row.appendChild(createdCell);
@@ -68,7 +79,8 @@ const normalizeConfig = (config) => {
 				? config.apihost.trim()
 				: DEFAULT_API_HOST,
 		systemprompt:
-			typeof config.systemprompt === "string" ? config.systemprompt : DEFAULT_SYSTEM_PROMPT
+			typeof config.systemprompt === "string" ? config.systemprompt : DEFAULT_SYSTEM_PROMPT,
+		model: typeof config.model === "string" ? config.model : DEFAULT_MODEL
 	};
 	return normalized;
 };
@@ -107,15 +119,15 @@ const loadModels = async () => {
 	setStatus("Loading models...");
 	tableEl.hidden = true;
 	try {
-		const config = await readConfig();
-		applyConfigToForm(config);
-		const response = await llm.listModels({ baseUrl: config.apihost });
+		currentConfig = await readConfig();
+		applyConfigToForm(currentConfig);
+		const response = await llm.listModels({ baseUrl: currentConfig.apihost });
 		const models = normalizeModels(response);
 		if (!models.length) {
 			setStatus("No models reported by the server.");
 			return;
 		}
-		renderModels(models);
+		renderModels(models, currentConfig.model);
 		setStatus(`Showing ${models.length} model${models.length === 1 ? "" : "s"}.`);
 		tableEl.hidden = false;
 	} catch (error) {
@@ -135,17 +147,49 @@ if (configForm) {
 		event.preventDefault();
 		const nextConfig = normalizeConfig({
 			apihost: apiHostInput ? apiHostInput.value : DEFAULT_API_HOST,
-			systemprompt: systemPromptInput ? systemPromptInput.value : DEFAULT_SYSTEM_PROMPT
+			systemprompt: systemPromptInput ? systemPromptInput.value : DEFAULT_SYSTEM_PROMPT,
+			model: currentConfig ? currentConfig.model : DEFAULT_MODEL
 		});
 		try {
 			await writeConfig(nextConfig);
 			applyConfigToForm(nextConfig);
+			currentConfig = nextConfig;
 		} catch (error) {
 			const message = error && error.message ? error.message : "Unknown error";
 			setStatus(`Failed to save config: ${message}`, true);
 			return;
 		}
 		loadModels();
+	});
+}
+
+if (tbodyEl) {
+	tbodyEl.addEventListener("change", async (event) => {
+		const checkbox = event.target;
+		if (!(checkbox instanceof HTMLInputElement) || checkbox.type !== "checkbox") {
+			return;
+		}
+		const modelId = checkbox.dataset.modelId || "";
+		if (checkbox.checked) {
+			Array.from(tbodyEl.querySelectorAll("input[type=\"checkbox\"]")).forEach((input) => {
+				if (input !== checkbox) {
+					input.checked = false;
+				}
+			});
+		}
+		const nextModel = checkbox.checked ? modelId : DEFAULT_MODEL;
+		const nextConfig = normalizeConfig({
+			apihost: currentConfig ? currentConfig.apihost : DEFAULT_API_HOST,
+			systemprompt: currentConfig ? currentConfig.systemprompt : DEFAULT_SYSTEM_PROMPT,
+			model: nextModel
+		});
+		try {
+			await writeConfig(nextConfig);
+			currentConfig = nextConfig;
+		} catch (error) {
+			const message = error && error.message ? error.message : "Unknown error";
+			setStatus(`Failed to save model: ${message}`, true);
+		}
 	});
 }
 
