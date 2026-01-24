@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Chess</title>
+		<link rel="stylesheet" href="css/futuris.css" />
+		<style>
+			/*
+				Template note (from session prompts): keep Futuris classless rules, use the minimum
+				custom classes needed for a board UI. Here we only use `.chess-board` and `.chess-square`
+				to enforce a strict 8x8 grid and stable square sizing.
+			*/
+			:root {
+				--board-size: min(72vmin, 520px);
+				--frame-size: calc(var(--board-size) + 64px);
+				--shell-size: calc(var(--board-size) + 86px);
+			}
+			.chess-board {
+				display: grid;
+				grid-template-columns: repeat(8, 1fr);
+				width: 100%;
+				aspect-ratio: 1 / 1;
+				border: 2px solid currentColor;
+			}
+			.chess-square {
+				display: grid;
+				place-items: center;
+				width: 100%;
+				height: 100%;
+				aspect-ratio: 1 / 1;
+				font-size: clamp(1.6rem, 3.8vw, 2.6rem);
+				user-select: none;
+			}
+			.chess-square[data-color="light"] {
+				background: linear-gradient(135deg, rgba(158, 247, 255, 0.75), rgba(255, 140, 245, 0.55));
+				color: inherit;
+			}
+			.chess-square[data-color="dark"] {
+				background: linear-gradient(135deg, rgba(34, 48, 78, 0.95), rgba(64, 28, 92, 0.92));
+				color: inherit;
+			}
+			.chess-square[data-highlight="true"] {
+				outline: 2px solid #d3b27a;
+				outline-offset: -2px;
+			}
+			.chess-square > span {
+				cursor: grab;
+				line-height: 1;
+				text-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
+			}
+			.chess-square > span[data-piece-color="white"],
+			span[data-piece-color="white"][data-floating="true"] {
+				color: #e9f6ff;
+				text-shadow: 0 0 8px rgba(0, 196, 255, 0.7), 0 0 4px rgba(0, 196, 255, 0.9),
+					0 0 14px rgba(255, 140, 245, 0.5), 0 0 22px rgba(255, 140, 245, 0.35);
+			}
+			.chess-square > span[data-piece-color="black"],
+			span[data-piece-color="black"][data-floating="true"] {
+				color: #0b0f16;
+				text-shadow: 0 0 8px rgba(255, 59, 244, 0.7), 0 0 4px rgba(255, 59, 244, 0.9),
+					0 0 14px rgba(0, 196, 255, 0.6), 0 0 22px rgba(0, 196, 255, 0.35);
+			}
+			.chess-square > span:active {
+				cursor: grabbing;
+			}
+			[data-floating="true"] {
+				position: fixed;
+				z-index: 9999;
+				pointer-events: none;
+				transition: transform 520ms ease;
+				will-change: transform;
+			}
+			#chess-layout {
+				display: grid;
+				grid-template-columns: max-content minmax(160px, 220px) minmax(280px, 1fr);
+				gap: 24px;
+				align-items: start;
+			}
+			#board-shell {
+				display: inline-block;
+				padding: 10px;
+				border: 1px solid rgba(0, 196, 255, 0.35);
+				background: linear-gradient(135deg, rgba(7, 12, 22, 0.6), rgba(20, 10, 26, 0.6));
+				box-shadow: 0 0 24px rgba(0, 196, 255, 0.2);
+			}
+			#board-frame {
+				display: grid;
+				grid-template-columns: 24px var(--board-size) 24px;
+				grid-template-rows: 24px var(--board-size) 24px;
+				gap: 8px;
+				align-items: center;
+				justify-items: center;
+				width: var(--frame-size);
+				height: var(--frame-size);
+			}
+			#file-labels-top,
+			#file-labels-bottom {
+				display: grid;
+				grid-template-columns: repeat(8, 1fr);
+				width: var(--board-size);
+				text-transform: lowercase;
+				font-size: 0.85rem;
+				letter-spacing: 0.04em;
+				color: #7ee6ff;
+				text-shadow: 0 0 6px rgba(0, 196, 255, 0.6);
+			}
+			#rank-labels-left,
+			#rank-labels-right {
+				display: grid;
+				grid-template-rows: repeat(8, 1fr);
+				height: var(--board-size);
+				font-size: 0.85rem;
+				letter-spacing: 0.04em;
+				color: #7ee6ff;
+				text-shadow: 0 0 6px rgba(0, 196, 255, 0.6);
+			}
+			#file-labels-top span,
+			#file-labels-bottom span,
+			#rank-labels-left span,
+			#rank-labels-right span {
+				display: grid;
+				place-items: center;
+				min-height: 18px;
+			}
+			#board-frame .corner {
+				width: 24px;
+				height: 24px;
+			}
+			#moveList {
+				display: grid;
+				grid-template-columns: repeat(4, minmax(0, 1fr));
+				gap: 16px;
+			}
+			#moveList ol {
+				margin: 0;
+				padding-left: 18px;
+			}
+			#score-panel {
+				position: relative;
+				gap: 16px;
+				padding: 10px;
+				border: 1px solid rgba(0, 196, 255, 0.35);
+				background: linear-gradient(135deg, rgba(6, 10, 22, 0.7), rgba(18, 8, 28, 0.7));
+				box-shadow: inset 0 0 14px rgba(0, 196, 255, 0.2);
+				height: var(--shell-size);
+			}
+			#score-panel h3 {
+				margin: 0 0 6px;
+				font-size: 0.8rem;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+				color: #7ee6ff;
+				text-shadow: 0 0 6px rgba(0, 196, 255, 0.6);
+			}
+			.score-line {
+				display: grid;
+				justify-items: center;
+				gap: 8px;
+			}
+			#score-panel .white-slot,
+			#score-panel .black-slot {
+				position: absolute;
+				left: 10px;
+				right: 10px;
+				display: flex;
+				flex-direction: column;
+				gap: 8px;
+			}
+			#score-panel .white-slot {
+				bottom: 10px;
+				align-items: center;
+			}
+			#score-panel .black-slot {
+				top: 10px;
+				align-items: center;
+			}
+			.score-value {
+				font-variant-numeric: tabular-nums;
+				color: #e9f6ff;
+				text-shadow: 0 0 6px rgba(0, 196, 255, 0.6);
+			}
+			.score-gauge {
+				position: relative;
+				width: 110px;
+				height: 70px;
+				border-radius: 120px 120px 12px 12px;
+				border: 1px solid rgba(0, 196, 255, 0.45);
+				background: radial-gradient(circle at 50% 80%, rgba(0, 196, 255, 0.18), rgba(7, 12, 22, 0.9));
+				box-shadow: inset 0 0 12px rgba(0, 196, 255, 0.2);
+				overflow: hidden;
+			}
+			.score-gauge::before {
+				content: "";
+				position: absolute;
+				inset: 8px 10px 12px;
+				border-radius: 100px 100px 8px 8px;
+				border: 1px dashed rgba(126, 230, 255, 0.4);
+			}
+			.score-needle {
+				position: absolute;
+				left: 50%;
+				bottom: 10px;
+				width: 2px;
+				height: 42px;
+				background: #e9f6ff;
+				box-shadow: 0 0 10px rgba(0, 196, 255, 0.8);
+				transform-origin: bottom center;
+				transform: translateX(-50%) rotate(-60deg);
+			}
+			.score-needle::after {
+				content: "";
+				position: absolute;
+				left: 50%;
+				bottom: -4px;
+				width: 8px;
+				height: 8px;
+				background: #0b0f16;
+				border: 1px solid rgba(0, 196, 255, 0.6);
+				border-radius: 50%;
+				transform: translateX(-50%);
+			}
+			#score-panel .black .score-gauge {
+				background: radial-gradient(circle at 50% 80%, rgba(255, 59, 244, 0.18), rgba(7, 12, 22, 0.9));
+			}
+			#score-panel .black .score-needle {
+				background: #f4f6ff;
+				box-shadow: 0 0 12px rgba(255, 59, 244, 0.9), 0 0 6px rgba(255, 255, 255, 0.7);
+			}
+			@media (max-width: 900px) {
+				#chess-layout {
+					grid-template-columns: 1fr;
+				}
+				#moveList {
+					grid-template-columns: repeat(2, minmax(0, 1fr));
+				}
+				#score-panel {
+					position: static;
+					display: grid;
+					grid-template-columns: repeat(2, minmax(0, 1fr));
+					height: auto;
+				}
+				#score-panel .white-slot,
+				#score-panel .black-slot {
+					position: static;
+					left: auto;
+					right: auto;
+					top: auto;
+					bottom: auto;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<!--\n\t\t\tTemplate note (from session prompts): this page is meant to be a minimal example\n\t\t\tfor board games. It keeps markup semantic, relies on Futuris, and only adds two\n\t\t\tclasses for the board grid and squares.\n\t\t-->
+		<header>
+			<nav id="site-nav" aria-label="Pages"></nav>
+			<h1>Chess Board</h1>
+			<p>
+				Drag pieces to move. Both sides can move. No check, castling, or en passant
+				logic yet.
+			</p>
+		</header>
+		<div id="layout">
+			<main>
+				<div id="chess-layout">
+					<section>
+						<h2>Board</h2>
+						<div id="board-shell">
+							<div id="board-frame" aria-label="Chess board with coordinates">
+								<div class="corner" aria-hidden="true"></div>
+								<div id="file-labels-top" aria-hidden="true"></div>
+								<div class="corner" aria-hidden="true"></div>
+								<div id="rank-labels-left" aria-hidden="true"></div>
+								<div id="board" class="chess-board" aria-label="Chess board"></div>
+								<div id="rank-labels-right" aria-hidden="true"></div>
+								<div class="corner" aria-hidden="true"></div>
+								<div id="file-labels-bottom" aria-hidden="true"></div>
+								<div class="corner" aria-hidden="true"></div>
+							</div>
+						</div>
+						<p>
+							<span id="next-move">Next move: any color</span>
+							<button id="guess-move" type="button">Guess the move</button>
+						</p>
+					</section>
+					<section>
+						<h2>Score</h2>
+						<div id="score-panel" aria-label="Score HUD">
+							<div class="black-slot black">
+								<h3>Black</h3>
+								<div class="score-line">
+									<span id="black-score" class="score-value">0</span>
+									<div class="score-gauge">
+										<div id="black-needle" class="score-needle"></div>
+									</div>
+								</div>
+							</div>
+							<div class="white-slot">
+								<h3>White</h3>
+								<div class="score-line">
+									<span id="white-score" class="score-value">0</span>
+									<div class="score-gauge">
+										<div id="white-needle" class="score-needle"></div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</section>
+					<section>
+						<h2>Move Log</h2>
+						<div id="moveList" aria-live="polite">
+							<ol data-column="0"></ol>
+							<ol data-column="1"></ol>
+							<ol data-column="2"></ol>
+							<ol data-column="3"></ol>
+						</div>
+					</section>
+				</div>
+			</main>
+		</div>
+
+		<script src="js/futuris.js"></script>
+		<script>
+			const boardEl = document.getElementById("board");
+			const moveListEl = document.getElementById("moveList");
+			const whiteScoreEl = document.getElementById("white-score");
+			const blackScoreEl = document.getElementById("black-score");
+			const whiteNeedleEl = document.getElementById("white-needle");
+			const blackNeedleEl = document.getElementById("black-needle");
+			const nextMoveEl = document.getElementById("next-move");
+			const guessMoveEl = document.getElementById("guess-move");
+			const fileLabelsTopEl = document.getElementById("file-labels-top");
+			const fileLabelsBottomEl = document.getElementById("file-labels-bottom");
+			const rankLabelsLeftEl = document.getElementById("rank-labels-left");
+			const rankLabelsRightEl = document.getElementById("rank-labels-right");
+			const PROXIMITY_MAX_MOVES = 5;
+			const scoresProximityMax = { white: 0, black: 0 };
+			const pieceValues = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+			const scoresPieceCountMax = getMaxPieceScore(pieceValues);
+			const scoresPawnMax = getMaxPawnScore();
+
+			// Board storage design (from session prompts):
+			// - 64-character array, index 0..63, rank-major order (a1 is 0, h8 is 63).
+			// - Empty squares use '.'.
+			// - Each piece is a single character using piece initials:
+			//   'k','q','r','b','n','p' for white (lowercase) and 'K','Q','R','B','N','P' for black (uppercase).
+			// - The knight uses 'n' to avoid conflict with the king.
+			// - Move generation returns indices (0..63) instead of SAN; SAN is only for logging/IO.
+			const board = Array(64).fill('.');
+
+			const pieceToGlyph = {
+				k: "\u2654",
+				q: "\u2655",
+				r: "\u2656",
+				b: "\u2657",
+				n: "\u2658",
+				p: "\u2659",
+				K: "\u265A",
+				Q: "\u265B",
+				R: "\u265C",
+				B: "\u265D",
+				N: "\u265E",
+				P: "\u265F"
+			};
+
+			function indexToSquare(index) {
+				// SAN square mapping: index -> file+rank (e.g., 0 -> a1, 63 -> h8).
+				const file = index % 8;
+				const rank = Math.floor(index / 8) + 1;
+				return String.fromCharCode(97 + file) + String(rank);
+			}
+
+			function squareToIndex(square) {
+				// SAN square mapping: file+rank -> index (e.g., a1 -> 0, h8 -> 63).
+				if (!/^[a-h][1-8]$/.test(square)) return -1;
+				const file = square.charCodeAt(0) - 97;
+				const rank = Number(square[1]) - 1;
+				return rank * 8 + file;
+			}
+
+			function sanToIndex(san) {
+				// Light SAN parsing: only pulls the trailing target square (e.g., "Nf3" -> f3).
+				const match = san.match(/[a-h][1-8]$/);
+				return match ? squareToIndex(match[0]) : -1;
+			}
+
+			function indexToSan(index) {
+				// Light SAN formatting: we only emit the square for index conversions.
+				return indexToSquare(index);
+			}
+
+			function isWhite(piece) {
+				return piece !== '.' && piece === piece.toLowerCase();
+			}
+
+			function isBlack(piece) {
+				return piece !== '.' && piece === piece.toUpperCase();
+			}
+
+			function setupInitialPosition() {
+				const backRankWhite = "rnbqkbnr";
+				const backRankBlack = "RNBQKBNR";
+				for (let i = 0; i < 8; i++) {
+					board[i] = backRankWhite[i];
+					board[8 + i] = 'p';
+					board[48 + i] = 'P';
+					board[56 + i] = backRankBlack[i];
+				}
+				for (let i = 16; i < 48; i++) board[i] = '.';
+			}
+
+			function inBounds(file, rank) {
+				return file >= 0 && file < 8 && rank >= 0 && rank < 8;
+			}
+
+			function getMovesFrom(index) {
+				// Move generator contract (from session prompts):
+				// - Input: one index (0..63).
+				// - Output: array of target indices (0..63).
+				// - Does not use SAN internally.
+				const piece = board[index];
+				if (piece === '.') return [];
+				const moves = [];
+				const file = index % 8;
+				const rank = Math.floor(index / 8);
+				const white = isWhite(piece);
+				const type = piece.toLowerCase();
+
+				if (type === 'p') {
+					const dir = white ? 1 : -1;
+					const startRank = white ? 1 : 6;
+					const oneStep = (rank + dir) * 8 + file;
+					if (inBounds(file, rank + dir) && board[oneStep] === '.') {
+						moves.push(oneStep);
+						if (rank === startRank) {
+							const twoStep = (rank + dir * 2) * 8 + file;
+							if (board[twoStep] === '.') moves.push(twoStep);
+						}
+					}
+					const captureFiles = [file - 1, file + 1];
+					for (const f of captureFiles) {
+						if (!inBounds(f, rank + dir)) continue;
+						const target = (rank + dir) * 8 + f;
+						const targetPiece = board[target];
+						if (white ? isBlack(targetPiece) : isWhite(targetPiece)) {
+							moves.push(target);
+						}
+					}
+					return moves;
+				}
+
+				if (type === 'n') {
+					const jumps = [
+						[1, 2],
+						[2, 1],
+						[-1, 2],
+						[-2, 1],
+						[1, -2],
+						[2, -1],
+						[-1, -2],
+						[-2, -1]
+					];
+					for (const [dx, dy] of jumps) {
+						const f = file + dx;
+						const r = rank + dy;
+						if (!inBounds(f, r)) continue;
+						const target = r * 8 + f;
+						const targetPiece = board[target];
+						if (
+							targetPiece === '.' ||
+							(white ? isBlack(targetPiece) : isWhite(targetPiece))
+						) {
+							moves.push(target);
+						}
+					}
+					return moves;
+				}
+
+				if (type === 'k') {
+					for (let dx = -1; dx <= 1; dx++) {
+						for (let dy = -1; dy <= 1; dy++) {
+							if (dx === 0 && dy === 0) continue;
+							const f = file + dx;
+							const r = rank + dy;
+							if (!inBounds(f, r)) continue;
+							const target = r * 8 + f;
+							const targetPiece = board[target];
+							if (
+								targetPiece === '.' ||
+								(white ? isBlack(targetPiece) : isWhite(targetPiece))
+							) {
+								moves.push(target);
+							}
+						}
+					}
+					return moves;
+				}
+
+				const sliders = [];
+				if (type === 'b' || type === 'q') {
+					sliders.push([1, 1], [1, -1], [-1, 1], [-1, -1]);
+				}
+				if (type === 'r' || type === 'q') {
+					sliders.push([1, 0], [-1, 0], [0, 1], [0, -1]);
+				}
+				if (sliders.length) {
+					for (const [dx, dy] of sliders) {
+						let f = file + dx;
+						let r = rank + dy;
+						while (inBounds(f, r)) {
+							const target = r * 8 + f;
+							const targetPiece = board[target];
+							if (targetPiece === '.') {
+								moves.push(target);
+							} else {
+								if (white ? isBlack(targetPiece) : isWhite(targetPiece)) {
+									moves.push(target);
+								}
+								break;
+							}
+							f += dx;
+							r += dy;
+						}
+					}
+					return moves;
+				}
+
+				return moves;
+			}
+
+			function moveToSAN(from, to, piece, capture) {
+				// Move notation for logging only. Full SAN is not required for move generation.
+				const type = piece.toLowerCase();
+				const pieceLetter = type === 'p' ? '' : type.toUpperCase();
+				const target = indexToSquare(to);
+				if (type === 'p' && capture) {
+					return indexToSquare(from)[0] + 'x' + target;
+				}
+				return pieceLetter + (capture ? 'x' : '') + target;
+			}
+
+			function getFirstMoveColor() {
+				// Turn logic requirement (from session prompts):
+				// - First move can be any color (no constraints).
+				// - After that, infer the first move color from its FROM-square rank:
+				//   rank 1-2 => white, rank 7-8 => black (simple heuristic on field coordinate).
+				// - Use only the move log to determine turn order; no extra state variables.
+				const firstItem = moveListEl.querySelector("li");
+				if (!firstItem) return null;
+				const match = firstItem.textContent.match(/\(([a-h][1-8])-[a-h][1-8]\)/);
+				if (!match) return null;
+				const fromSquare = match[1];
+				const rank = Number(fromSquare[1]);
+				if (rank <= 2) return "white";
+				if (rank >= 7) return "black";
+				return null;
+			}
+
+			function getNextMoveColor() {
+				// Turn logic requirement (from session prompts):
+				// - If move count is even (pair number), next color equals the first move color.
+				// - If move count is odd, next color is the opposite.
+				const moveCount = moveListEl.querySelectorAll("li").length;
+				if (moveCount === 0) return null;
+				const firstColor = getFirstMoveColor();
+				if (!firstColor) return null;
+				if (moveCount % 2 === 0) return firstColor;
+				return firstColor === "white" ? "black" : "white";
+			}
+
+			function renderBoard() {
+				boardEl.innerHTML = '';
+				for (let rank = 7; rank >= 0; rank--) {
+					for (let file = 0; file < 8; file++) {
+						const index = rank * 8 + file;
+						const square = document.createElement('div');
+						square.className = 'chess-square';
+						square.dataset.index = index;
+						square.dataset.square = indexToSquare(index);
+						square.dataset.color = (rank + file) % 2 === 0 ? 'light' : 'dark';
+						const piece = board[index];
+						if (piece !== '.') {
+							const pieceEl = document.createElement('span');
+							pieceEl.textContent = pieceToGlyph[piece] || piece;
+							pieceEl.dataset.pieceColor = isWhite(piece) ? "white" : "black";
+							pieceEl.draggable = true;
+							pieceEl.dataset.index = index;
+							pieceEl.addEventListener('dragstart', onDragStart);
+							square.appendChild(pieceEl);
+						}
+						square.addEventListener('dragover', onDragOver);
+						square.addEventListener('drop', onDrop);
+						boardEl.appendChild(square);
+					}
+				}
+				const scores = calculateScores();
+				const maxScore = getMaxScore();
+				renderScoreGauges(scores, maxScore);
+				renderNextMove();
+				checkWinCondition();
+			}
+
+			function calculateScores() {
+				// pieceScores: higher is better (more material retained).
+				const pieceScores = calculatePieceCountScores();
+				// proximityScores: lower is better (fewer moves to reach opponent king).
+				const proximityScores = {
+					white: getProximityScore("white", PROXIMITY_MAX_MOVES),
+					black: getProximityScore("black", PROXIMITY_MAX_MOVES)
+				};
+				// pawnScores: higher is better (pawns closer to opponent baseline).
+				const pawnScores = calculatePawnScores();
+				// Invert proximity so higher is better, then combine with material score.
+				return {
+					white:
+						pieceScores.white +
+						scoresProximityMax.white -
+						proximityScores.white +
+						pawnScores.white,
+					black:
+						pieceScores.black +
+						scoresProximityMax.black -
+						proximityScores.black +
+						pawnScores.black
+				};
+			}
+
+			function calculatePieceCountScores() {
+				let white = 0;
+				let black = 0;
+				for (const piece of board) {
+					if (piece === '.') continue;
+					const value = pieceValues[piece.toLowerCase()] || 0;
+					if (isWhite(piece)) white += value;
+					else black += value;
+				}
+				return { white, black };
+			}
+
+			function getMaxScore() {
+				return (
+					scoresPieceCountMax +
+					Math.max(scoresProximityMax.white, scoresProximityMax.black) +
+					scoresPawnMax
+				);
+			}
+
+			function getMaxPieceScore(values) {
+				const counts = { p: 8, n: 2, b: 2, r: 2, q: 1, k: 1 };
+				return Object.entries(counts).reduce(
+					(sum, [piece, count]) => sum + (values[piece] || 0) * count,
+					0
+				);
+			}
+
+			function getMaxPawnScore() {
+				const pawnsPerSide = 8;
+				const maxAdvance = 6;
+				return pawnsPerSide * maxAdvance;
+			}
+
+			function calculatePawnScores() {
+				let white = 0;
+				let black = 0;
+				for (let i = 0; i < board.length; i++) {
+					const piece = board[i];
+					if (piece === '.') continue;
+					if (piece.toLowerCase() !== 'p') continue;
+					const rank = Math.floor(i / 8);
+					if (isWhite(piece)) {
+						white += Math.max(0, rank - 1);
+					} else {
+						black += Math.max(0, 6 - rank);
+					}
+				}
+				return { white, black };
+			}
+
+			function renderScoreGauges(scores, maxScore) {
+				whiteScoreEl.textContent = String(scores.white);
+				blackScoreEl.textContent = String(scores.black);
+				const whiteAngle = -90 + (scores.white / maxScore) * 180;
+				const blackAngle = -90 + (scores.black / maxScore) * 180;
+				whiteNeedleEl.style.transform = `translateX(-50%) rotate(${whiteAngle}deg)`;
+				blackNeedleEl.style.transform = `translateX(-50%) rotate(${blackAngle}deg)`;
+			}
+
+			function applyMove(from, to, options = {}) {
+				if (options.animate) {
+					guessMoveEl.disabled = true;
+					animateMove(from, to, () => {
+						commitMove(from, to);
+						guessMoveEl.disabled = false;
+					});
+					return;
+				}
+				commitMove(from, to);
+			}
+
+			function commitMove(from, to) {
+				const piece = board[from];
+				if (piece === '.') return;
+				const capture = board[to] !== '.';
+				board[to] = piece;
+				board[from] = '.';
+				const san = moveToSAN(from, to, piece, capture);
+				const item = document.createElement('li');
+				item.textContent = san + ' (' + indexToSquare(from) + '-' + indexToSquare(to) + ')';
+				const moveCount = moveListEl.querySelectorAll("li").length;
+				const columnIndex = Math.min(3, Math.floor(moveCount / 20));
+				const targetColumn = moveListEl.querySelector(`[data-column="${columnIndex}"]`);
+				(targetColumn || moveListEl).appendChild(item);
+				renderBoard();
+			}
+
+			function animateMove(from, to, done) {
+				const fromSquare = boardEl.querySelector(`[data-index="${from}"]`);
+				const toSquare = boardEl.querySelector(`[data-index="${to}"]`);
+				if (!fromSquare || !toSquare) {
+					done();
+					return;
+				}
+				const pieceEl = fromSquare.querySelector("span");
+				if (!pieceEl) {
+					done();
+					return;
+				}
+				const fromRect = pieceEl.getBoundingClientRect();
+				const toRect = toSquare.getBoundingClientRect();
+				const floating = pieceEl.cloneNode(true);
+				floating.dataset.floating = "true";
+				floating.style.left = `${fromRect.left}px`;
+				floating.style.top = `${fromRect.top}px`;
+				floating.style.width = `${fromRect.width}px`;
+				floating.style.height = `${fromRect.height}px`;
+				floating.style.fontSize = getComputedStyle(pieceEl).fontSize;
+				floating.style.lineHeight = getComputedStyle(pieceEl).lineHeight;
+				floating.style.transform = "translate(0px, 0px)";
+				document.body.appendChild(floating);
+				pieceEl.style.visibility = "hidden";
+				const dx = toRect.left - fromRect.left + (toRect.width - fromRect.width) / 2;
+				const dy = toRect.top - fromRect.top + (toRect.height - fromRect.height) / 2;
+				requestAnimationFrame(() => {
+					floating.style.transform = `translate(${dx}px, ${dy}px)`;
+				});
+				floating.addEventListener(
+					"transitionend",
+					() => {
+						floating.remove();
+						pieceEl.style.visibility = "";
+						done();
+					},
+					{ once: true }
+				);
+			}
+
+			function checkWinCondition() {
+				const hasWhiteKing = board.includes('k');
+				const hasBlackKing = board.includes('K');
+				if (!hasWhiteKing || !hasBlackKing) {
+					const winner = hasWhiteKing ? "White" : "Black";
+					window.alert(`${winner} wins`);
+				}
+			}
+
+			function renderNextMove() {
+				const next = getNextMoveColor();
+				const label = next ? next : "any color";
+				nextMoveEl.textContent = `Next move: ${label}`;
+			}
+
+			function computeMove() {
+				const next = getNextMoveColor();
+				const colors = next ? [next] : ["white", "black"];
+				const baseBoard = board.slice();
+				let best = null;
+
+				for (const color of colors) {
+					for (let i = 0; i < baseBoard.length; i++) {
+						const piece = baseBoard[i];
+						if (piece === '.') continue;
+						if (color === "white" && !isWhite(piece)) continue;
+						if (color === "black" && !isBlack(piece)) continue;
+						const moves = getMovesFromWithBoard(i, baseBoard);
+						for (const target of moves) {
+							const nextBoard = baseBoard.slice();
+							nextBoard[target] = nextBoard[i];
+							nextBoard[i] = '.';
+							const scores = calculateScoresWithBoard(nextBoard);
+							const ranking =
+								color === "white"
+									? scores.white - scores.black
+									: scores.black - scores.white;
+							if (!best || ranking > best.ranking) {
+								best = { from: i, to: target, color, ranking };
+							}
+						}
+					}
+				}
+
+				if (best) {
+					applyMove(best.from, best.to, { animate: true });
+				}
+			}
+
+			function calculateScoresWithBoard(boardState) {
+				const original = board.slice();
+				for (let i = 0; i < 64; i++) board[i] = boardState[i];
+				const scores = calculateScores();
+				for (let i = 0; i < 64; i++) board[i] = original[i];
+				return scores;
+			}
+
+			// Distance helper (from session prompts):
+			// Compute the fewest moves a piece needs to reach a target square using getMovesFrom.
+			function getMoveDistance(from, to, maxMoves) {
+				if (!Number.isFinite(from) || !Number.isFinite(to)) return -1;
+				if (from === to) return 0;
+				if (!Number.isFinite(maxMoves) || maxMoves < 0) return -1;
+				const startBoard = board.slice();
+				const queue = [{ pos: from, depth: 0, state: startBoard }];
+				const visited = new Set();
+				visited.add(`${from}|${startBoard.join('')}`);
+
+				while (queue.length) {
+					const { pos, depth, state } = queue.shift();
+					if (depth >= maxMoves) continue;
+					const moves = getMovesFromWithBoard(pos, state);
+					const target = pickClosestMove(moves, to);
+					if (!Number.isFinite(target)) continue;
+					{
+						const next = state.slice();
+						const piece = next[pos];
+						next[pos] = '.';
+						next[target] = piece;
+						if (target === to) return depth + 1;
+						const key = `${target}|${next.join('')}`;
+						if (visited.has(key)) continue;
+						visited.add(key);
+						queue.push({ pos: target, depth: depth + 1, state: next });
+					}
+				}
+				return -1;
+			}
+
+			// Proximity heuristic (from session prompts):
+			// Sum of move-distance from all pieces of one color (excluding own king) to the opponent king.
+			function getProximityScore(color, maxMoves) {
+				const isOwn = color === "white" ? isWhite : isBlack;
+				const opponentKing = color === "white" ? "K" : "k";
+				const kingIndex = board.findIndex((piece) => piece === opponentKing);
+				if (kingIndex === -1) return -1;
+				let sum = 0;
+				for (let i = 0; i < board.length; i++) {
+					const piece = board[i];
+					if (piece === '.') continue;
+					if (!isOwn(piece)) continue;
+					if (piece.toLowerCase() === 'k') continue;
+					const distance = getMoveDistance(i, kingIndex, maxMoves);
+					sum += distance === -1 ? maxMoves + 1 : distance;
+				}
+				return sum;
+			}
+
+			function pickClosestMove(moves, to) {
+				if (!moves || moves.length === 0) return NaN;
+				let best = moves[0];
+				let bestDist = distanceBetween(best, to);
+				for (let i = 1; i < moves.length; i++) {
+					const candidate = moves[i];
+					const dist = distanceBetween(candidate, to);
+					if (dist < bestDist) {
+						bestDist = dist;
+						best = candidate;
+					}
+				}
+				return best;
+			}
+
+			function distanceBetween(from, to) {
+				const fx = from % 8;
+				const fy = Math.floor(from / 8);
+				const tx = to % 8;
+				const ty = Math.floor(to / 8);
+				const dx = fx - tx;
+				const dy = fy - ty;
+				return Math.hypot(dx, dy);
+			}
+
+			function getMovesFromWithBoard(index, boardState) {
+				const original = board.slice();
+				for (let i = 0; i < 64; i++) board[i] = boardState[i];
+				const moves = getMovesFrom(index);
+				for (let i = 0; i < 64; i++) board[i] = original[i];
+				return moves;
+			}
+
+			function renderLabels() {
+				const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+				const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
+				fileLabelsTopEl.innerHTML = '';
+				fileLabelsBottomEl.innerHTML = '';
+				rankLabelsLeftEl.innerHTML = '';
+				rankLabelsRightEl.innerHTML = '';
+				files.forEach((file) => {
+					const top = document.createElement('span');
+					top.textContent = file;
+					fileLabelsTopEl.appendChild(top);
+					const bottom = document.createElement('span');
+					bottom.textContent = file;
+					fileLabelsBottomEl.appendChild(bottom);
+				});
+				ranks.forEach((rank) => {
+					const left = document.createElement('span');
+					left.textContent = rank;
+					rankLabelsLeftEl.appendChild(left);
+					const right = document.createElement('span');
+					right.textContent = rank;
+					rankLabelsRightEl.appendChild(right);
+				});
+			}
+
+			let dragFrom = null;
+			let highlightTargets = [];
+
+			function clearHighlights() {
+				highlightTargets.forEach((idx) => {
+					const el = boardEl.querySelector(`[data-index="${idx}"]`);
+					if (el) el.dataset.highlight = 'false';
+				});
+				highlightTargets = [];
+			}
+
+			function onDragStart(event) {
+				const from = Number(event.target.dataset.index);
+				dragFrom = Number.isFinite(from) ? from : null;
+				if (!Number.isFinite(dragFrom)) return;
+				const nextColor = getNextMoveColor();
+				const piece = board[dragFrom];
+				if (
+					nextColor &&
+					((nextColor === "white" && !isWhite(piece)) ||
+						(nextColor === "black" && !isBlack(piece)))
+				) {
+					dragFrom = null;
+					event.preventDefault();
+					return;
+				}
+				clearHighlights();
+				const moves = getMovesFrom(dragFrom);
+				highlightTargets = moves.slice();
+				highlightTargets.forEach((idx) => {
+					const el = boardEl.querySelector(`[data-index="${idx}"]`);
+					if (el) el.dataset.highlight = 'true';
+				});
+				event.dataTransfer.setData('text/plain', String(dragFrom));
+			}
+
+			function onDragOver(event) {
+				event.preventDefault();
+			}
+
+			function onDrop(event) {
+				event.preventDefault();
+				clearHighlights();
+				const to = Number(event.currentTarget.dataset.index);
+				const from = dragFrom;
+				dragFrom = null;
+				if (!Number.isFinite(from) || !Number.isFinite(to)) return;
+				if (from === to) return;
+				const piece = board[from];
+				if (piece === '.') return;
+				const nextColor = getNextMoveColor();
+				if (
+					nextColor &&
+					((nextColor === "white" && !isWhite(piece)) ||
+						(nextColor === "black" && !isBlack(piece)))
+				) {
+					return;
+				}
+				const moves = getMovesFrom(from);
+				if (!moves.includes(to)) return;
+				applyMove(from, to, { animate: false });
+			}
+
+			setupInitialPosition();
+			scoresProximityMax.white = getProximityScore("white", PROXIMITY_MAX_MOVES);
+			scoresProximityMax.black = getProximityScore("black", PROXIMITY_MAX_MOVES);
+			renderLabels();
+			renderBoard();
+			guessMoveEl.addEventListener("click", computeMove);
+		</script>
+	</body>
+</html>
