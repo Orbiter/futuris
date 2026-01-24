@@ -4,7 +4,8 @@ const pages = [
 	{ title: "Dashboard", href: "dashboard.html" },
 	{ title: "Finder", href: "finder.html" },
 	{ title: "Chat", href: "chat.html" },
-	{ title: "LLM", href: "LLM.html" }
+	{ title: "LLM", href: "LLM.html" },
+	{ title: "Chess", href: "chess.html" }
 ];
 
 const toc = document.getElementById("toc");

@@ -9,7 +9,7 @@ if (!chatLog || !chatForm || !chatInput || !chatStatus || !chatModel || !chatSen
 	throw new Error("Missing chat UI elements.");
 }
 
-const llm = createSusiLLM();
+const llm = createLLM();
 const CONFIG_PATH = "/config.json";
 const DEFAULT_API_HOST = "http://localhost:11434";
 const DEFAULT_SYSTEM_PROMPT = "";
