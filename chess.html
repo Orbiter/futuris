@@ -7,7 +7,7 @@
 		<link rel="stylesheet" href="css/futuris.css" />
 		<style>
 			/*
-				Template note (from session prompts): keep Futuris classless rules, use the minimum
+				Template note: keep Futuris classless rules, use the minimum
 				custom classes needed for a board UI. Here we only use `.chess-board` and `.chess-square`
 				to enforce a strict 8x8 grid and stable square sizing.
 			*/
@@ -252,7 +252,7 @@
 		</style>
 	</head>
 	<body>
-		<!--\n\t\t\tTemplate note (from session prompts): this page is meant to be a minimal example\n\t\t\tfor board games. It keeps markup semantic, relies on Futuris, and only adds two\n\t\t\tclasses for the board grid and squares.\n\t\t-->
+		<!--\n\t\t\tThis page is meant to be a minimal example\n\t\t\tfor board games. It keeps markup semantic, relies on Futuris, and only adds two\n\t\t\tclasses for the board grid and squares.\n\t\t-->
 		<header>
 			<nav id="site-nav" aria-label="Pages"></nav>
 			<h1>Chess Board</h1>
@@ -336,11 +336,13 @@
 			const rankLabelsRightEl = document.getElementById("rank-labels-right");
 			const PROXIMITY_MAX_MOVES = 5;
 			const scoresProximityMax = { white: 0, black: 0 };
+			const scoresDistanceMax = { white: 0, black: 0 };
+			const pieceCountBoost = 4;
 			const pieceValues = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
-			const scoresPieceCountMax = getMaxPieceScore(pieceValues);
+			const scoresPieceCountMax = getMaxPieceScore(pieceValues) * pieceCountBoost;
 			const scoresPawnMax = getMaxPawnScore();
 
-			// Board storage design (from session prompts):
+			// Board storage design:
 			// - 64-character array, index 0..63, rank-major order (a1 is 0, h8 is 63).
 			// - Empty squares use '.'.
 			// - Each piece is a single character using piece initials:
@@ -415,7 +417,7 @@
 			}
 
 			function getMovesFrom(index) {
-				// Move generator contract (from session prompts):
+				// Move generator contract:
 				// - Input: one index (0..63).
 				// - Output: array of target indices (0..63).
 				// - Does not use SAN internally.
@@ -435,10 +437,14 @@
 						moves.push(oneStep);
 						if (rank === startRank) {
 							const twoStep = (rank + dir * 2) * 8 + file;
-							if (board[twoStep] === '.') moves.push(twoStep);
+							const intermediateStep = (rank + dir) * 8 + file;
+							if (inBounds(file, rank + dir * 2) && board[twoStep] === '.' && board[intermediateStep] === '.') {
+								moves.push(twoStep);
+							}
 						}
 					}
 					const captureFiles = [file - 1, file + 1];
+					const promotionRank = white ? 7 : 0;
 					for (const f of captureFiles) {
 						if (!inBounds(f, rank + dir)) continue;
 						const target = (rank + dir) * 8 + f;
@@ -541,7 +547,7 @@
 			}
 
 			function getFirstMoveColor() {
-				// Turn logic requirement (from session prompts):
+				// Turn logic requirement:
 				// - First move can be any color (no constraints).
 				// - After that, infer the first move color from its FROM-square rank:
 				//   rank 1-2 => white, rank 7-8 => black (simple heuristic on field coordinate).
@@ -558,7 +564,7 @@
 			}
 
 			function getNextMoveColor() {
-				// Turn logic requirement (from session prompts):
+				// Turn logic requirement:
 				// - If move count is even (pair number), next color equals the first move color.
 				// - If move count is odd, next color is the opposite.
 				const moveCount = moveListEl.querySelectorAll("li").length;
@@ -609,19 +615,26 @@
 					white: getProximityScore("white", PROXIMITY_MAX_MOVES),
 					black: getProximityScore("black", PROXIMITY_MAX_MOVES)
 				};
+				// distanceScore: lower is better (closer in straight-line distance to opponent king).
+				const distanceScore = {
+					white: getDistanceScore("white"),
+					black: getDistanceScore("black")
+				};
 				// pawnScores: higher is better (pawns closer to opponent baseline).
 				const pawnScores = calculatePawnScores();
-				// Invert proximity so higher is better, then combine with material score.
+				// Invert proximity + distance so higher is better, then combine with material score.
 				return {
 					white:
-						pieceScores.white +
+						pieceScores.white * pieceCountBoost +
 						scoresProximityMax.white -
 						proximityScores.white +
+						Math.round(scoresDistanceMax.white - distanceScore.white) +
 						pawnScores.white,
 					black:
-						pieceScores.black +
+						pieceScores.black * pieceCountBoost +
 						scoresProximityMax.black -
 						proximityScores.black +
+						Math.round(scoresDistanceMax.black - distanceScore.black) +
 						pawnScores.black
 				};
 			}
@@ -642,6 +655,7 @@
 				return (
 					scoresPieceCountMax +
 					Math.max(scoresProximityMax.white, scoresProximityMax.black) +
+					Math.max(scoresDistanceMax.white, scoresDistanceMax.black) +
 					scoresPawnMax
 				);
 			}
@@ -702,7 +716,12 @@
 				const piece = board[from];
 				if (piece === '.') return;
 				const capture = board[to] !== '.';
-				board[to] = piece;
+				const type = piece.toLowerCase();
+				if (type === 'p' && ((piece === 'P' && to >= 56) || (piece === 'p' && to < 8))) {
+					board[to] = piece === 'P' ? 'Q' : 'q';
+				} else {
+					board[to] = piece;
+				}
 				board[from] = '.';
 				const san = moveToSAN(from, to, piece, capture);
 				const item = document.createElement('li');
@@ -770,13 +789,43 @@
 				nextMoveEl.textContent = `Next move: ${label}`;
 			}
 
+			function getOppositeColor(color) {
+				return color === "white" ? "black" : "white";
+			}
+
+			function getBestMoveForColor(boardState, color) {
+				let best = null;
+				for (let i = 0; i < boardState.length; i++) {
+					const piece = boardState[i];
+					if (piece === '.') continue;
+					if (color === "white" && !isWhite(piece)) continue;
+					if (color === "black" && !isBlack(piece)) continue;
+					const moves = getMovesFromWithBoard(i, boardState);
+					for (const target of moves) {
+						const nextBoard = boardState.slice();
+						nextBoard[target] = nextBoard[i];
+						nextBoard[i] = '.';
+						const scores = calculateScoresWithBoard(nextBoard);
+						const ranking =
+							color === "white"
+								? scores.white - scores.black
+								: scores.black - scores.white;
+						if (!best || ranking > best.ranking) {
+							best = { from: i, to: target, color, ranking, board: nextBoard };
+						}
+					}
+				}
+				return best;
+			}
+
 			function computeMove() {
 				const next = getNextMoveColor();
 				const colors = next ? [next] : ["white", "black"];
-				const baseBoard = board.slice();
 				let best = null;
 
 				for (const color of colors) {
+					const baseBoard = board.slice();
+					const opponentColor = getOppositeColor(color);
 					for (let i = 0; i < baseBoard.length; i++) {
 						const piece = baseBoard[i];
 						if (piece === '.') continue;
@@ -784,16 +833,18 @@
 						if (color === "black" && !isBlack(piece)) continue;
 						const moves = getMovesFromWithBoard(i, baseBoard);
 						for (const target of moves) {
-							const nextBoard = baseBoard.slice();
-							nextBoard[target] = nextBoard[i];
-							nextBoard[i] = '.';
-							const scores = calculateScoresWithBoard(nextBoard);
-							const ranking =
+							const candidateBoard = baseBoard.slice();
+							candidateBoard[target] = candidateBoard[i];
+							candidateBoard[i] = '.';
+							const opponentBest = getBestMoveForColor(candidateBoard, opponentColor);
+							const finalBoard = opponentBest ? opponentBest.board : candidateBoard;
+							const finalScores = calculateScoresWithBoard(finalBoard);
+							const finalRanking =
 								color === "white"
-									? scores.white - scores.black
-									: scores.black - scores.white;
-							if (!best || ranking > best.ranking) {
-								best = { from: i, to: target, color, ranking };
+									? finalScores.white - finalScores.black
+									: finalScores.black - finalScores.white;
+							if (!best || finalRanking > best.ranking) {
+								best = { from: i, to: target, color, ranking: finalRanking };
 							}
 						}
 					}
@@ -812,7 +863,7 @@
 				return scores;
 			}
 
-			// Distance helper (from session prompts):
+			// Distance helper:
 			// Compute the fewest moves a piece needs to reach a target square using getMovesFrom.
 			function getMoveDistance(from, to, maxMoves) {
 				if (!Number.isFinite(from) || !Number.isFinite(to)) return -1;
@@ -844,7 +895,7 @@
 				return -1;
 			}
 
-			// Proximity heuristic (from session prompts):
+			// Proximity heuristic:
 			// Sum of move-distance from all pieces of one color (excluding own king) to the opponent king.
 			function getProximityScore(color, maxMoves) {
 				const isOwn = color === "white" ? isWhite : isBlack;
@@ -859,6 +910,24 @@
 					if (piece.toLowerCase() === 'k') continue;
 					const distance = getMoveDistance(i, kingIndex, maxMoves);
 					sum += distance === -1 ? maxMoves + 1 : distance;
+				}
+				return sum;
+			}
+
+			// Distance heuristic:
+			// Sum of straight-line distance from all non-pawn pieces to the opponent king.
+			function getDistanceScore(color) {
+				const isOwn = color === "white" ? isWhite : isBlack;
+				const opponentKing = color === "white" ? "K" : "k";
+				const kingIndex = board.findIndex((piece) => piece === opponentKing);
+				if (kingIndex === -1) return -1;
+				let sum = 0;
+				for (let i = 0; i < board.length; i++) {
+					const piece = board[i];
+					if (piece === '.') continue;
+					if (!isOwn(piece)) continue;
+					if (piece.toLowerCase() === 'p') continue;
+					sum += distanceBetween(i, kingIndex);
 				}
 				return sum;
 			}
@@ -987,6 +1056,8 @@
 			setupInitialPosition();
 			scoresProximityMax.white = getProximityScore("white", PROXIMITY_MAX_MOVES);
 			scoresProximityMax.black = getProximityScore("black", PROXIMITY_MAX_MOVES);
+			scoresDistanceMax.white = getDistanceScore("white");
+			scoresDistanceMax.black = getDistanceScore("black");
 			renderLabels();
 			renderBoard();
 			guessMoveEl.addEventListener("click", computeMove);
