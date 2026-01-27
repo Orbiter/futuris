@@ -14,6 +14,7 @@ It is meant to style plain semantic HTML without adding component classes.
 - `index.html`: general style demo.
 - `reference.html`: compact reference view.
 - `dashboard.html`: data-style layout demo.
+- `calendar.html`: monthly calendar demo with navigation.
 - `icons/`: cyberpunk-style SVG assets (see `icons/README.md` for icon notes).
 
 ## JavaScript behavior

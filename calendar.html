@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="de">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Futuris Kalender</title>
+		<link rel="stylesheet" href="css/futuris.css" />
+		<style>
+			:root {
+				--calendar-gap: clamp(6px, 1vw, 10px);
+				--calendar-day-size: clamp(56px, 9vw, 88px);
+			}
+
+			.calendar-header {
+				display: grid;
+				grid-template-columns: auto 1fr auto;
+				align-items: center;
+				gap: 10px;
+				padding-bottom: 10px;
+				border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+				max-width: var(--calendar-width);
+				margin: 0 auto;
+			}
+
+			.calendar-section {
+				width: max-content;
+				max-width: 100%;
+				margin: 0 auto 14px;
+				padding-top: 8px;
+			}
+
+			.calendar-header button {
+				background: rgba(20, 28, 42, 0.9);
+				border: 1px solid rgba(255, 255, 255, 0.12);
+				color: var(--color-foreground);
+				border-radius: 10px;
+				width: 42px;
+				height: 42px;
+				cursor: pointer;
+				font-size: 1.1rem;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				transition: border-color 0.2s ease, transform 0.2s ease;
+			}
+
+			.calendar-header button:hover {
+				border-color: var(--color-primary);
+				transform: translateY(-1px);
+			}
+
+			.calendar-title {
+				text-align: center;
+				font-family: var(--font-display);
+				font-size: 1.4rem;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+				color: var(--color-primary);
+			}
+
+			.calendar-weekdays,
+			.calendar-grid {
+				display: grid;
+				grid-template-columns: repeat(7, var(--calendar-day-size));
+				gap: var(--calendar-gap);
+				width: calc(7 * var(--calendar-day-size) + 6 * var(--calendar-gap));
+				margin: 0 auto;
+			}
+
+			.calendar-weekdays {
+				padding: 10px 2px 8px;
+			}
+
+			.calendar-weekdays span {
+				text-align: center;
+				font-size: 0.75rem;
+				letter-spacing: 0.2em;
+				text-transform: uppercase;
+				color: rgba(230, 240, 255, 0.6);
+			}
+
+			.calendar-day {
+				background: rgba(15, 20, 34, 0.85);
+				border: 1px solid rgba(255, 255, 255, 0.08);
+				border-radius: 10px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				aspect-ratio: 1 / 1;
+				font-weight: 600;
+				font-size: clamp(0.75rem, 1.6vw, 0.95rem);
+				color: var(--color-foreground);
+				box-shadow: inset 0 0 0 1px rgba(53, 245, 255, 0.08);
+			}
+
+			.calendar-day--empty {
+				background: rgba(10, 12, 20, 0.5);
+				border: 1px dashed rgba(255, 255, 255, 0.08);
+				color: transparent;
+				box-shadow: none;
+			}
+
+			.calendar-day--today {
+				border-color: rgba(53, 245, 255, 0.6);
+				box-shadow: 0 0 0 1px rgba(53, 245, 255, 0.4), 0 0 18px rgba(53, 245, 255, 0.25);
+				background: rgba(53, 245, 255, 0.08);
+			}
+
+			.time-overlay {
+				position: fixed;
+				inset: 0;
+				background: rgba(4, 6, 12, 0.75);
+				display: none;
+				align-items: center;
+				justify-content: center;
+				padding: 20px;
+				z-index: 20;
+			}
+
+			.time-overlay.is-open {
+				display: flex;
+			}
+
+			.time-popup {
+				background: rgba(10, 14, 24, 0.95);
+				border: 1px solid rgba(255, 255, 255, 0.12);
+				border-radius: 18px;
+				padding: 14px 16px;
+				width: min(92vw, 820px);
+				box-shadow: 0 24px 50px rgba(0, 0, 0, 0.55);
+			}
+
+			.time-popup h3 {
+				margin: 0 0 12px;
+				font-family: var(--font-display);
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+				font-size: 1rem;
+				color: var(--color-primary);
+			}
+
+			.time-grid {
+				display: grid;
+				grid-template-columns: 1fr;
+				gap: 12px;
+			}
+
+			.time-group {
+				display: grid;
+				grid-template-columns: repeat(3, minmax(0, 1fr));
+				gap: 8px;
+			}
+
+			.time-block {
+				padding-bottom: 10px;
+			}
+
+			.time-block:last-of-type {
+				padding-bottom: 0;
+			}
+
+			.time-card {
+				aspect-ratio: 2 / 1;
+				border-radius: 12px;
+				border: 1px solid rgba(255, 255, 255, 0.12);
+				background: rgba(15, 20, 34, 0.9);
+				display: flex;
+				flex-direction: column;
+				justify-content: flex-start;
+				gap: 4px;
+				padding: 6px 8px 8px;
+			}
+
+			.time-card span {
+				font-size: 0.7rem;
+				letter-spacing: 0.12em;
+				text-transform: uppercase;
+				color: rgba(230, 240, 255, 0.6);
+				font-family: var(--font-display);
+				line-height: 1;
+			}
+
+			.time-card textarea {
+				background: transparent;
+				border: none;
+				color: var(--color-foreground);
+				font-family: var(--font-mono);
+				font-size: 0.8rem;
+				padding: 4px 0 0;
+				resize: none;
+				min-height: 0;
+				flex: 1;
+				width: 100%;
+			}
+
+			.time-card textarea:focus {
+				outline: 1px solid var(--color-primary);
+			}
+
+			.time-label {
+				display: inline-block;
+				margin-bottom: 6px;
+				font-size: 0.75rem;
+				letter-spacing: 0.12em;
+				text-transform: uppercase;
+				color: rgba(230, 240, 255, 0.6);
+			}
+
+			.time-actions {
+				display: flex;
+				justify-content: flex-end;
+			}
+
+			@media (max-width: 720px) {
+				.calendar-header {
+					grid-template-columns: auto 1fr auto;
+				}
+
+				.calendar-title {
+					font-size: 1rem;
+					letter-spacing: 0.04em;
+				}
+
+				.time-popup {
+					padding: 14px;
+				}
+
+				.time-group {
+					grid-template-columns: repeat(2, minmax(0, 1fr));
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<header>
+			<nav id="site-nav" aria-label="Pages"></nav>
+			<h1>Kalender</h1>
+			<p>Monatsansicht mit Navigation zum vorherigen oder naechsten Monat.</p>
+		</header>
+
+		<div id="layout">
+			<main>
+				<section class="calendar-section">
+					<div class="calendar-header" role="application" aria-label="Kalender">
+						<button id="calendar-prev" type="button" aria-label="Vorheriger Monat">
+							&larr;
+						</button>
+						<div id="calendar-title" class="calendar-title" aria-live="polite"></div>
+						<button id="calendar-next" type="button" aria-label="Naechster Monat">
+							&rarr;
+						</button>
+					</div>
+					<div class="calendar-weekdays" aria-hidden="true">
+						<span>Mo</span>
+						<span>Di</span>
+						<span>Mi</span>
+						<span>Do</span>
+						<span>Fr</span>
+						<span>Sa</span>
+						<span>So</span>
+					</div>
+					<div id="calendar-grid" class="calendar-grid" role="grid"></div>
+				</section>
+			</main>
+		</div>
+
+		<div id="time-overlay" class="time-overlay" aria-hidden="true">
+			<div class="time-popup" role="dialog" aria-modal="true" aria-label="Zeitfelder">
+				<h3 id="time-popup-title">Zeitfelder</h3>
+				<div class="time-grid">
+					<div class="time-block">
+						<span class="time-label">Morning</span>
+						<div class="time-group">
+							<div class="time-card"><span>07:00</span><textarea data-hour="07:00"></textarea></div>
+							<div class="time-card"><span>08:00</span><textarea data-hour="08:00"></textarea></div>
+							<div class="time-card"><span>09:00</span><textarea data-hour="09:00"></textarea></div>
+							<div class="time-card"><span>10:00</span><textarea data-hour="10:00"></textarea></div>
+							<div class="time-card"><span>11:00</span><textarea data-hour="11:00"></textarea></div>
+							<div class="time-card"><span>12:00</span><textarea data-hour="12:00"></textarea></div>
+						</div>
+					</div>
+					<div class="time-block">
+						<span class="time-label">Afternoon</span>
+						<div class="time-group">
+							<div class="time-card"><span>13:00</span><textarea data-hour="13:00"></textarea></div>
+							<div class="time-card"><span>14:00</span><textarea data-hour="14:00"></textarea></div>
+							<div class="time-card"><span>15:00</span><textarea data-hour="15:00"></textarea></div>
+							<div class="time-card"><span>16:00</span><textarea data-hour="16:00"></textarea></div>
+							<div class="time-card"><span>17:00</span><textarea data-hour="17:00"></textarea></div>
+							<div class="time-card"><span>18:00</span><textarea data-hour="18:00"></textarea></div>
+						</div>
+					</div>
+					<div class="time-block">
+						<span class="time-label">Evening</span>
+						<div class="time-group">
+							<div class="time-card"><span>19:00</span><textarea data-hour="19:00"></textarea></div>
+							<div class="time-card"><span>20:00</span><textarea data-hour="20:00"></textarea></div>
+							<div class="time-card"><span>21:00</span><textarea data-hour="21:00"></textarea></div>
+							<div class="time-card"><span>22:00</span><textarea data-hour="22:00"></textarea></div>
+							<div class="time-card"><span>23:00</span><textarea data-hour="23:00"></textarea></div>
+							<div class="time-card"><span>24:00</span><textarea data-hour="24:00"></textarea></div>
+						</div>
+					</div>
+				</div>
+				<div class="time-actions">
+					<button id="time-close" type="button">close</button>
+				</div>
+			</div>
+		</div>
+
+		<script src="js/futuris.js"></script>
+		<script src="js/vfs.js"></script>
+		<script>
+			(async () => {
+				const calendarTitle = document.getElementById("calendar-title");
+				const calendarGrid = document.getElementById("calendar-grid");
+				const prevButton = document.getElementById("calendar-prev");
+				const nextButton = document.getElementById("calendar-next");
+				const timeOverlay = document.getElementById("time-overlay");
+				const timeClose = document.getElementById("time-close");
+				const timeTitle = document.getElementById("time-popup-title");
+				const timeInputs = Array.from(document.querySelectorAll(".time-card textarea"));
+
+				const monthNames = [
+					"Januar",
+					"Februar",
+					"Maerz",
+					"April",
+					"Mai",
+					"Juni",
+					"Juli",
+					"August",
+					"September",
+					"Oktober",
+					"November",
+					"Dezember"
+				];
+
+				const pad2 = (value) => String(value).padStart(2, "0");
+				const today = new Date();
+				let viewDate = new Date(today.getFullYear(), today.getMonth(), 1);
+				let currentDateKey = null;
+				let calendarEntries = [];
+				let calendarMap = new Map();
+				let saveTimer = null;
+
+				const rebuildMap = () => {
+					calendarMap = new Map();
+					calendarEntries.forEach((entry) => {
+						if (!entry || typeof entry !== "object") return;
+						const [key, value] = Object.entries(entry)[0] || [];
+						if (key) {
+							calendarMap.set(key, String(value ?? ""));
+						}
+					});
+				};
+
+				const persistStore = async () => {
+					const ordered = Array.from(calendarMap.entries()).sort((a, b) =>
+						a[0].localeCompare(b[0])
+					);
+					calendarEntries = ordered.map(([key, value]) => ({ [key]: value }));
+					const vfs = await window.vfsReady;
+					await vfs.put("/calendar.json", JSON.stringify(calendarEntries, null, 2));
+				};
+
+				const ensureStore = async () => {
+					try {
+						const vfs = await window.vfsReady;
+						const raw = await vfs.getasync("/calendar.json");
+						const parsed = JSON.parse(raw);
+						calendarEntries = Array.isArray(parsed) ? parsed : [];
+					} catch (error) {
+						calendarEntries = [];
+						await persistStore();
+					}
+					rebuildMap();
+				};
+
+				const scheduleSave = () => {
+					if (saveTimer) {
+						clearTimeout(saveTimer);
+					}
+					saveTimer = setTimeout(() => {
+						persistStore().catch(() => undefined);
+					}, 300);
+				};
+
+				const openTimePopup = (year, month, dayNumber) => {
+					currentDateKey = `${year}${pad2(month + 1)}${pad2(dayNumber)}`;
+					timeTitle.textContent = `${dayNumber}. ${monthNames[month]} ${year}`;
+					timeInputs.forEach((input) => {
+						const hour = input.dataset.hour?.slice(0, 2) || "00";
+						const key = `${currentDateKey}-${hour}`;
+						input.value = calendarMap.get(key) || "";
+					});
+					timeOverlay.classList.add("is-open");
+					timeOverlay.setAttribute("aria-hidden", "false");
+					timeInputs[0]?.focus();
+				};
+
+				const renderCalendar = () => {
+					const year = viewDate.getFullYear();
+					const month = viewDate.getMonth();
+					calendarTitle.textContent = `${monthNames[month]} ${year}`;
+					calendarGrid.innerHTML = "";
+
+					const firstDay = new Date(year, month, 1);
+					const startOffset = (firstDay.getDay() + 6) % 7;
+					const daysInMonth = new Date(year, month + 1, 0).getDate();
+					const totalCells = 42;
+
+					for (let i = 0; i < totalCells; i += 1) {
+						const dayNumber = i - startOffset + 1;
+						const cell = document.createElement("div");
+						cell.classList.add("calendar-day");
+
+						if (dayNumber < 1 || dayNumber > daysInMonth) {
+							cell.classList.add("calendar-day--empty");
+							cell.setAttribute("aria-hidden", "true");
+						} else {
+							cell.textContent = dayNumber;
+							cell.setAttribute("role", "gridcell");
+							cell.setAttribute("tabindex", "0");
+							const isToday =
+								dayNumber === today.getDate() &&
+								month === today.getMonth() &&
+								year === today.getFullYear();
+							if (isToday) {
+								cell.classList.add("calendar-day--today");
+							}
+							cell.addEventListener("click", () => {
+								openTimePopup(year, month, dayNumber);
+							});
+							cell.addEventListener("keydown", (event) => {
+								if (event.key === "Enter" || event.key === " ") {
+									event.preventDefault();
+									openTimePopup(year, month, dayNumber);
+								}
+							});
+						}
+
+						calendarGrid.appendChild(cell);
+					}
+				};
+
+				timeInputs.forEach((input) => {
+					input.addEventListener("input", () => {
+						if (!currentDateKey) return;
+						const hour = input.dataset.hour?.slice(0, 2) || "00";
+						const key = `${currentDateKey}-${hour}`;
+						const value = input.value;
+						if (value.trim() === "") {
+							calendarMap.delete(key);
+						} else {
+							calendarMap.set(key, value);
+						}
+						scheduleSave();
+					});
+				});
+
+				prevButton.addEventListener("click", () => {
+					viewDate.setMonth(viewDate.getMonth() - 1);
+					renderCalendar();
+				});
+
+				nextButton.addEventListener("click", () => {
+					viewDate.setMonth(viewDate.getMonth() + 1);
+					renderCalendar();
+				});
+
+				timeClose.addEventListener("click", () => {
+					timeOverlay.classList.remove("is-open");
+					timeOverlay.setAttribute("aria-hidden", "true");
+				});
+
+				timeOverlay.addEventListener("click", (event) => {
+					if (event.target === timeOverlay) {
+						timeOverlay.classList.remove("is-open");
+						timeOverlay.setAttribute("aria-hidden", "true");
+					}
+				});
+
+				await ensureStore();
+				renderCalendar();
+			})();
+		</script>
+	</body>
+</html>

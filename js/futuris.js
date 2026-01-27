@@ -5,6 +5,7 @@ const pages = [
 	{ title: "Finder", href: "finder.html" },
 	{ title: "Chat", href: "chat.html" },
 	{ title: "LLM", href: "LLM.html" },
+	{ title: "Calendar", href: "calendar.html" },
 	{ title: "Chess", href: "chess.html" },
 	{ title: "Isometric", href: "isometric.html" }
 ];
