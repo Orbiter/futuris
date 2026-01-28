@@ -2,7 +2,7 @@ const pages = [
 	{ title: "Home", href: "index.html" },
 	{ title: "Reference", href: "reference.html" },
 	{ title: "Dashboard", href: "dashboard.html" },
-	{ title: "Finder", href: "finder.html" },
+	{ title: "VFS", href: "vfs.html" },
 	{ title: "Chat", href: "chat.html" },
 	{ title: "LLM", href: "LLM.html" },
 	{ title: "Calendar", href: "calendar.html" },

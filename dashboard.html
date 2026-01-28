@@ -223,6 +223,7 @@
 
 		<script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
 		<script>
+			(() => {
 			const observedDates = [
 				"2024-06-20",
 				"2024-06-22",
@@ -317,6 +318,7 @@
 				layout,
 				{ displayModeBar: false, responsive: true }
 			);
+			})();
 		</script>
 		<script src="js/futuris.js"></script>
 	</body>
