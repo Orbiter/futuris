@@ -1,0 +1,1447 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Futuris Invaders</title>
+		<link rel="stylesheet" href="css/futuris.css" />
+		<style>
+			body {
+				background: radial-gradient(circle at top, rgba(53, 245, 255, 0.12), transparent 55%),
+					linear-gradient(180deg, rgba(6, 7, 11, 0.92), rgba(4, 6, 10, 0.98));
+			}
+
+			main {
+				padding: 0 16px 48px;
+			}
+
+			.invaders-hero {
+				position: relative;
+				border: 1px solid rgba(53, 245, 255, 0.3);
+				background: linear-gradient(135deg, rgba(15, 20, 34, 0.92), rgba(7, 10, 16, 0.95));
+				box-shadow: inset 0 0 40px rgba(53, 245, 255, 0.12), 0 20px 40px rgba(0, 0, 0, 0.45);
+				padding: 20px;
+				overflow: hidden;
+			}
+
+			.invaders-hero::before,
+			.invaders-hero::after {
+				content: "";
+				position: absolute;
+				inset: 0;
+				pointer-events: none;
+			}
+
+			.invaders-hero::before {
+				background: repeating-linear-gradient(
+					0deg,
+					rgba(53, 245, 255, 0.08) 0px,
+					rgba(53, 245, 255, 0.08) 1px,
+					transparent 1px,
+					transparent 22px
+				);
+				opacity: 0.35;
+			}
+
+			.invaders-hero::after {
+				background: radial-gradient(circle at 20% 20%, rgba(255, 79, 198, 0.18), transparent 40%),
+					radial-gradient(circle at 80% 10%, rgba(233, 201, 81, 0.2), transparent 45%);
+				mix-blend-mode: screen;
+			}
+
+			.hud-grid {
+				display: grid;
+				grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.7fr);
+				gap: 16px;
+				position: relative;
+				z-index: 1;
+			}
+
+			.hud-panel {
+				border: 1px solid rgba(53, 245, 255, 0.35);
+				background: rgba(5, 8, 14, 0.9);
+				padding: 16px;
+				box-shadow: 0 0 18px rgba(53, 245, 255, 0.12);
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+				font-size: 0.72rem;
+				position: relative;
+			}
+
+			.hud-panel .hud-sound {
+				position: absolute;
+				top: 12px;
+				right: 12px;
+				margin: 0;
+				padding: 4px;
+				border: 1px solid rgba(53, 245, 255, 0.6);
+				background: rgba(7, 12, 20, 0.85);
+				color: var(--color-primary);
+				cursor: pointer;
+				z-index: 2;
+				width: 28px;
+				height: 28px;
+				display: grid;
+				place-items: center;
+			}
+
+			.hud-panel .hud-sound:hover {
+				border-color: var(--color-accent-detail);
+				color: var(--color-accent-detail);
+			}
+
+			.hud-panel .hud-sound svg {
+				width: 18px;
+				height: 18px;
+				stroke: currentColor;
+				fill: none;
+				stroke-width: 2.2;
+				stroke-linecap: square;
+				stroke-linejoin: miter;
+			}
+
+			.hud-panel .hud-sound line {
+				opacity: 0;
+			}
+
+			.hud-panel .hud-sound[aria-pressed="true"] line {
+				opacity: 1;
+			}
+
+			.hud-sound-label {
+				position: absolute;
+				top: 14px;
+				right: 48px;
+				font-size: 0.6rem;
+				letter-spacing: 0.12em;
+				color: var(--color-primary);
+				opacity: 0.75;
+			}
+
+			.hud-panel strong {
+				display: block;
+				font-size: 1.2rem;
+				letter-spacing: 0.12em;
+				color: var(--color-primary);
+				margin-top: 8px;
+			}
+
+			.hud-panel .pulse {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				margin-top: 6px;
+				font-size: 0.65rem;
+				color: var(--color-amber);
+			}
+
+			.pulse span {
+				width: 8px;
+				height: 8px;
+				border-radius: 50%;
+				background: var(--color-amber);
+				box-shadow: 0 0 12px rgba(233, 201, 81, 0.8);
+				animation: blink 1.2s ease-in-out infinite;
+			}
+
+			@keyframes blink {
+				0%,
+				100% {
+					opacity: 0.35;
+				}
+				50% {
+					opacity: 1;
+				}
+			}
+
+			.playfield {
+				border: 1px solid rgba(53, 245, 255, 0.4);
+				background: rgba(4, 7, 12, 0.9);
+				padding: 12px;
+				min-height: 360px;
+				position: relative;
+			}
+
+			.playfield svg {
+				width: 100%;
+				height: 100%;
+				display: block;
+			}
+
+			.playfield::before {
+				content: "";
+				position: absolute;
+				inset: 10px;
+				border: 1px dashed rgba(53, 245, 255, 0.3);
+				pointer-events: none;
+			}
+
+			.playfield-hud {
+				position: absolute;
+				top: 12px;
+				left: 14px;
+				display: flex;
+				gap: 16px;
+				align-items: center;
+				text-transform: uppercase;
+				letter-spacing: 0.12em;
+				font-size: 0.65rem;
+				color: var(--color-amber);
+				z-index: 2;
+			}
+
+			.playfield-hud span {
+				color: var(--color-primary);
+				margin-left: 6px;
+			}
+
+			.playfield-overlay {
+				position: absolute;
+				inset: 0;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				gap: 14px;
+				background: rgba(4, 7, 12, 0.8);
+				text-transform: uppercase;
+				letter-spacing: 0.12em;
+				z-index: 2;
+			}
+
+			.playfield-overlay.hidden {
+				display: none;
+			}
+
+			.playfield-overlay p {
+				margin: 0;
+				font-size: 0.75rem;
+				opacity: 0.8;
+			}
+
+			#start-btn {
+				font-family: var(--font-display);
+				font-size: 1rem;
+				padding: 14px 28px;
+				border: 1px solid rgba(53, 245, 255, 0.7);
+				background: rgba(5, 12, 20, 0.9);
+				color: var(--color-primary);
+				text-transform: uppercase;
+				letter-spacing: 0.18em;
+				box-shadow: 0 0 20px rgba(53, 245, 255, 0.3);
+				cursor: pointer;
+			}
+
+			#start-btn:hover {
+				border-color: var(--color-accent-detail);
+				color: var(--color-accent-detail);
+				box-shadow: 0 0 24px rgba(255, 79, 198, 0.4);
+			}
+
+			.vector-icon {
+				width: 54px;
+				height: 38px;
+				stroke: var(--color-primary);
+				fill: none;
+				stroke-width: 2.2;
+				stroke-linecap: square;
+				stroke-linejoin: miter;
+				filter: drop-shadow(0 0 6px rgba(53, 245, 255, 0.4));
+			}
+
+			.vector-icon.small {
+				width: 46px;
+				height: 32px;
+				stroke-width: 2.1;
+			}
+
+			.vector-icon.ufo {
+				width: 74px;
+				height: 32px;
+				stroke: var(--color-accent-detail);
+			}
+
+			.vector-icon.cannon {
+				width: 72px;
+				height: 44px;
+				stroke: var(--color-amber);
+			}
+
+			.vector-icon.shield {
+				width: 70px;
+				height: 46px;
+				stroke: var(--color-foreground);
+			}
+
+			.ufo-rotate {
+				transform-origin: center;
+				transform-box: fill-box;
+				animation: ufo-spin 6s linear infinite;
+			}
+
+			.cannon-rotate {
+				transform-origin: center;
+				transform-box: fill-box;
+				animation: cannon-sway 2.2s ease-in-out infinite;
+			}
+
+			.explosion-line {
+				stroke-width: 3;
+				stroke-linecap: square;
+				fill: none;
+			}
+
+			@keyframes ufo-spin {
+				0% {
+					transform: rotate(0deg);
+				}
+				50% {
+					transform: rotate(6deg);
+				}
+				100% {
+					transform: rotate(0deg);
+				}
+			}
+
+			@keyframes cannon-sway {
+				0%,
+				100% {
+					transform: rotate(-3deg);
+				}
+				50% {
+					transform: rotate(3deg);
+				}
+			}
+
+			.dossier {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+				gap: 12px;
+				margin-top: 18px;
+			}
+
+			.dossier article {
+				border: 1px solid rgba(53, 245, 255, 0.3);
+				background: rgba(8, 12, 20, 0.88);
+				padding: 12px;
+				text-align: center;
+			}
+
+			.dossier h3 {
+				margin: 10px 0 6px;
+				font-size: 0.9rem;
+				text-transform: uppercase;
+				letter-spacing: 0.1em;
+			}
+
+			.dossier p {
+				margin: 0;
+				font-size: 0.75rem;
+				opacity: 0.75;
+			}
+
+			@media (max-width: 900px) {
+				.hud-grid {
+					grid-template-columns: 1fr;
+				}
+
+				.playfield {
+					min-height: 320px;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<header>
+			<nav id="site-nav" aria-label="Pages"></nav>
+			<h1>Invaders Vector Bay</h1>
+			<p>
+				A Futuris spin on Space Invaders: every sprite rendered as a pure
+				SVG wireframe with a glowing vector-display vibe.
+			</p>
+		</header>
+
+		<main>
+			<section class="invaders-hero">
+				<div class="hud-grid">
+					<div class="hud-panel">
+						<p>Command HUD</p>
+						<button
+							id="sound-toggle"
+							class="hud-sound"
+							type="button"
+							aria-pressed="false"
+							aria-label="Toggle sound"
+							tabindex="-1"
+						>
+							<svg viewBox="0 0 24 24" aria-hidden="true">
+								<rect x="3" y="3" width="18" height="18" />
+								<line x1="7" y1="7" x2="17" y2="17" />
+								<line x1="17" y1="7" x2="7" y2="17" />
+							</svg>
+						</button>
+						<span id="sound-label" class="hud-sound-label">Sound Off</span>
+						<strong>Sector 07</strong>
+						<div class="pulse"><span></span>Vector scan live</div>
+						<p>Score: <span id="score">000000</span></p>
+						<p>Credits: <span id="lives">03</span></p>
+						<p>Wave: <span id="wave">01</span></p>
+						<p>Move: ◄ ► / Fire: Space</p>
+						<div id="hud-messages" aria-live="polite"></div>
+					</div>
+					<div class="playfield" aria-label="Vector playfield">
+						<div class="playfield-hud" aria-label="Game status">
+							<div>Lives <span id="lives-live">03</span></div>
+							<div>Score <span id="score-live">000000</span></div>
+						</div>
+						<div class="playfield-overlay" id="start-overlay">
+							<p>Vector controls: arrows to move, space to fire</p>
+							<button id="start-btn" type="button">Start Mission</button>
+						</div>
+						<svg id="invaders-svg" viewBox="0 0 900 520" role="img" aria-label="Space Invaders playfield">
+							<defs>
+								<symbol id="alien-ufo" viewBox="0 0 96 40">
+									<path d="M6 22H90" />
+									<path d="M16 22L26 12H70L80 22" />
+									<path d="M36 12C40 6 56 6 60 12" />
+									<path d="M28 22L20 30H76L68 22" />
+									<path d="M30 22V28" />
+									<path d="M48 22V30" />
+									<path d="M66 22V28" />
+								</symbol>
+								<symbol id="alien-squid" viewBox="0 0 64 40">
+									<path d="M10 26L18 14H46L54 26" />
+									<path d="M18 14L32 6L46 14" />
+									<path d="M24 22V28" />
+									<path d="M32 20V30" />
+									<path d="M40 22V28" />
+									<path d="M20 26L12 34" />
+									<path d="M44 26L52 34" />
+								</symbol>
+								<symbol id="alien-squid-alt" viewBox="0 0 64 40">
+									<path d="M10 25L18 13H46L54 25" />
+									<path d="M18 13L32 7L46 13" />
+									<path d="M22 22V30" />
+									<path d="M32 20V32" />
+									<path d="M42 22V30" />
+									<path d="M18 26L10 34" />
+									<path d="M46 26L54 34" />
+								</symbol>
+								<symbol id="alien-octopus" viewBox="0 0 64 40">
+									<path d="M14 26L22 14H42L50 26" />
+									<path d="M22 14L32 8L42 14" />
+									<path d="M24 20H28" />
+									<path d="M36 20H40" />
+									<path d="M18 26L14 34" />
+									<path d="M26 26V34" />
+									<path d="M32 26V34" />
+									<path d="M38 26V34" />
+									<path d="M46 26L50 34" />
+								</symbol>
+								<symbol id="alien-octopus-alt" viewBox="0 0 64 40">
+									<path d="M14 25L22 13H42L50 25" />
+									<path d="M22 13L32 7L42 13" />
+									<path d="M22 20H26" />
+									<path d="M38 20H42" />
+									<path d="M16 26L12 34" />
+									<path d="M24 26V35" />
+									<path d="M32 26V36" />
+									<path d="M40 26V35" />
+									<path d="M48 26L52 34" />
+								</symbol>
+								<symbol id="alien-crab" viewBox="0 0 64 40">
+									<path d="M8 24L18 14H46L56 24" />
+									<path d="M18 14L18 8H28" />
+									<path d="M46 14L46 8H36" />
+									<path d="M20 24L12 32" />
+									<path d="M44 24L52 32" />
+									<path d="M26 24V30" />
+									<path d="M38 24V30" />
+									<path d="M24 18H28" />
+									<path d="M36 18H40" />
+								</symbol>
+								<symbol id="alien-crab-alt" viewBox="0 0 64 40">
+									<path d="M8 24L18 13H46L56 24" />
+									<path d="M18 13L16 6H28" />
+									<path d="M46 13L48 6H36" />
+									<path d="M18 24L10 32" />
+									<path d="M46 24L54 32" />
+									<path d="M26 24V32" />
+									<path d="M38 24V32" />
+									<path d="M22 18H26" />
+									<path d="M38 18H42" />
+								</symbol>
+								<symbol id="cannon" viewBox="0 0 96 56">
+									<path d="M22 42H74" />
+									<path d="M36 42V28H60V42" />
+									<path d="M42 28V18H54V28" />
+									<path d="M46 18V10H50V18" />
+									<path d="M28 42L20 50H76L68 42" />
+								</symbol>
+								<symbol id="shield" viewBox="0 0 80 56">
+									<path d="M10 46V24L24 12H56L70 24V46" />
+									<path d="M20 46V30H60V46" />
+									<path d="M34 30V22H46V30" />
+								</symbol>
+								<symbol id="shield-full" viewBox="0 0 96 56">
+									<path d="M8 46V24L24 10H72L88 24V46" />
+									<path d="M18 46V30H78V46" />
+									<path d="M36 30V20H60V30" />
+								</symbol>
+								<symbol id="shield-mid" viewBox="0 0 96 56">
+									<path d="M10 46V26L24 12H72L86 26V46" />
+									<path d="M20 46V32H76V46" />
+									<path d="M36 32V22H48" />
+									<path d="M56 22H60V32" />
+									<path d="M28 26H32" />
+									<path d="M64 26H68" />
+								</symbol>
+								<symbol id="shield-low" viewBox="0 0 96 56">
+									<path d="M12 46V28L26 16H70L84 28V46" />
+									<path d="M24 46V34H72V46" />
+									<path d="M40 34V26H50" />
+									<path d="M58 26H60V34" />
+									<path d="M30 30L26 36" />
+									<path d="M66 30L70 36" />
+								</symbol>
+								<symbol id="shield-critical" viewBox="0 0 96 56">
+									<path d="M16 46V32L30 22H66L80 32V46" />
+									<path d="M30 46V38H66V46" />
+									<path d="M42 38V32H46" />
+									<path d="M52 32H54V38" />
+									<path d="M24 34L18 40" />
+									<path d="M72 34L78 40" />
+								</symbol>
+							</defs>
+							<rect x="6" y="6" width="888" height="508" rx="6" ry="6" opacity="0" />
+							<g id="ufo-lane"></g>
+							<g id="alien-fleet"></g>
+							<g id="shield-line"></g>
+							<g id="cannon-rig"></g>
+							<g id="shots"></g>
+							<g id="explosions"></g>
+						</svg>
+					</div>
+				</div>
+			</section>
+
+			<section>
+				<h2>Object Sheet</h2>
+				<p>
+					All entities are drawn with inline SVG strokes only, recreating classic
+					Space Invaders silhouettes as precision wireframes.
+				</p>
+				<div class="dossier">
+					<article>
+						<svg class="vector-icon ufo" viewBox="0 0 96 40" role="img" aria-label="UFO">
+							<path d="M6 22H90" />
+							<path d="M16 22L26 12H70L80 22" />
+							<path d="M36 12C40 6 56 6 60 12" />
+							<path d="M28 22L20 30H76L68 22" />
+							<path d="M30 22V28" />
+							<path d="M48 22V30" />
+							<path d="M66 22V28" />
+						</svg>
+						<h3>UFO</h3>
+						<p>High-tier scout with wide beam hull.</p>
+					</article>
+					<article>
+						<svg class="vector-icon small" viewBox="0 0 64 40" role="img" aria-label="Squid">
+							<path d="M10 26L18 14H46L54 26" />
+							<path d="M18 14L32 6L46 14" />
+							<path d="M24 22V28" />
+							<path d="M32 20V30" />
+							<path d="M40 22V28" />
+							<path d="M20 26L12 34" />
+							<path d="M44 26L52 34" />
+						</svg>
+						<h3>Squid</h3>
+						<p>Fast arc runner with tapered tentacles.</p>
+					</article>
+					<article>
+						<svg class="vector-icon small" viewBox="0 0 64 40" role="img" aria-label="Octopus">
+							<path d="M14 26L22 14H42L50 26" />
+							<path d="M22 14L32 8L42 14" />
+							<path d="M24 20H28" />
+							<path d="M36 20H40" />
+							<path d="M18 26L14 34" />
+							<path d="M26 26V34" />
+							<path d="M32 26V34" />
+							<path d="M38 26V34" />
+							<path d="M46 26L50 34" />
+						</svg>
+						<h3>Octopus</h3>
+						<p>Balanced stalker with vertical tendrils.</p>
+					</article>
+					<article>
+						<svg class="vector-icon" viewBox="0 0 64 40" role="img" aria-label="Crab">
+							<path d="M8 24L18 14H46L56 24" />
+							<path d="M18 14L18 8H28" />
+							<path d="M46 14L46 8H36" />
+							<path d="M20 24L12 32" />
+							<path d="M44 24L52 32" />
+							<path d="M26 24V30" />
+							<path d="M38 24V30" />
+							<path d="M24 18H28" />
+							<path d="M36 18H40" />
+						</svg>
+						<h3>Crab</h3>
+						<p>Heavy carapace with claw braces.</p>
+					</article>
+					<article>
+						<svg class="vector-icon cannon" viewBox="0 0 96 56" role="img" aria-label="Cannon">
+							<path d="M22 42H74" />
+							<path d="M36 42V28H60V42" />
+							<path d="M42 28V18H54V28" />
+							<path d="M46 18V10H50V18" />
+							<path d="M28 42L20 50H76L68 42" />
+						</svg>
+						<h3>Cannon</h3>
+						<p>Ground rig with elevated barrel.</p>
+					</article>
+					<article>
+						<svg class="vector-icon shield" viewBox="0 0 80 56" role="img" aria-label="Shield">
+							<path d="M10 46V24L24 12H56L70 24V46" />
+							<path d="M20 46V30H60V46" />
+							<path d="M34 30V22H46V30" />
+						</svg>
+						<h3>Shield</h3>
+						<p>Vector lattice bunker module.</p>
+					</article>
+				</div>
+			</section>
+		</main>
+
+		<script src="js/futuris.js"></script>
+		<script>
+			(() => {
+				const svg = document.getElementById("invaders-svg");
+				if (!svg) return;
+
+				const overlay = document.getElementById("start-overlay");
+				const startBtn = document.getElementById("start-btn");
+				const overlayMessage = overlay ? overlay.querySelector("p") : null;
+				const scoreEl = document.getElementById("score");
+				const livesEl = document.getElementById("lives");
+				const waveEl = document.getElementById("wave");
+				const scoreLiveEl = document.getElementById("score-live");
+				const livesLiveEl = document.getElementById("lives-live");
+				const hudMessages = document.getElementById("hud-messages");
+				const soundToggle = document.getElementById("sound-toggle");
+				const soundLabel = document.getElementById("sound-label");
+
+				const ufoLane = document.getElementById("ufo-lane");
+				const alienFleet = document.getElementById("alien-fleet");
+				const shieldLine = document.getElementById("shield-line");
+				const cannonRig = document.getElementById("cannon-rig");
+				const shots = document.getElementById("shots");
+				const explosions = document.getElementById("explosions");
+
+				const svgNS = "http://www.w3.org/2000/svg";
+				const width = 900;
+				const height = 520;
+
+				const sizes = {
+					ufo: { w: 84, h: 26 },
+					squid: { w: 48, h: 32 },
+					octopus: { w: 50, h: 34 },
+					crab: { w: 52, h: 34 },
+					cannon: { w: 72, h: 38 },
+					shield: { w: 86, h: 46 }
+				};
+
+				const state = {
+					running: false,
+					score: 0,
+					lives: 3,
+					wave: 1,
+					keys: { left: false, right: false },
+					cooldown: 0,
+					alienCooldown: 0,
+					gameOverAt: 0,
+					gameOverPending: false,
+					frameTimer: 0,
+					frameToggle: false,
+					spawnActive: false,
+					spawnElapsed: 0,
+					messageTimer: 0,
+					messageIndex: 0,
+					audioOn: false,
+					audioCtx: null,
+					lastTime: 0,
+					direction: 1,
+					stepDown: 22,
+					fleetSpeed: 22,
+					aliens: [],
+					bullets: [],
+					alienBullets: [],
+					ufo: null,
+					cannon: { x: width / 2, y: height - 20 },
+					shields: [],
+					explosions: []
+				};
+
+				const padScore = (value) => value.toString().padStart(6, "0");
+
+				const updateHud = () => {
+					if (scoreEl) scoreEl.textContent = padScore(state.score);
+					if (livesEl) livesEl.textContent = state.lives.toString().padStart(2, "0");
+					if (waveEl) waveEl.textContent = state.wave.toString().padStart(2, "0");
+					if (scoreLiveEl) scoreLiveEl.textContent = padScore(state.score);
+					if (livesLiveEl) livesLiveEl.textContent = state.lives.toString().padStart(2, "0");
+				};
+
+				const missionStatements = [
+					"Vector uplink stable.",
+					"Telemetry sweep complete.",
+					"Aux grid: nominal.",
+					"Threat cadence mapped.",
+					"Target lattice engaged.",
+					"Signal phase aligned.",
+					"Defense matrix green.",
+					"Anomaly drift corrected.",
+					"Pulse envelope locked.",
+					"Coil sync verified."
+				];
+
+				const updateHudMessage = (dt) => {
+					if (!hudMessages) return;
+					state.messageTimer += dt;
+					if (state.messageTimer < 3.2) return;
+					state.messageTimer = 0;
+					state.messageIndex = (state.messageIndex + 1) % missionStatements.length;
+					hudMessages.textContent = missionStatements[state.messageIndex];
+				};
+
+				const ensureAudio = () => {
+					if (state.audioCtx) return state.audioCtx;
+					const ctx = new (window.AudioContext || window.webkitAudioContext)();
+					state.audioCtx = ctx;
+					return ctx;
+				};
+
+				const playTone = (frequency, duration, type = "square", gainValue = 0.08) => {
+					if (!state.audioOn) return;
+					const ctx = ensureAudio();
+					const now = ctx.currentTime;
+					const osc = ctx.createOscillator();
+					const gain = ctx.createGain();
+					osc.type = type;
+					osc.frequency.setValueAtTime(frequency, now);
+					gain.gain.setValueAtTime(gainValue, now);
+					gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+					osc.connect(gain).connect(ctx.destination);
+					osc.start(now);
+					osc.stop(now + duration);
+				};
+
+				const playNoiseHit = (duration = 0.2) => {
+					if (!state.audioOn) return;
+					const ctx = ensureAudio();
+					const now = ctx.currentTime;
+					const buffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
+					const data = buffer.getChannelData(0);
+					for (let i = 0; i < data.length; i += 1) {
+						data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+					}
+					const source = ctx.createBufferSource();
+					const filter = ctx.createBiquadFilter();
+					filter.type = "highpass";
+					filter.frequency.setValueAtTime(600, now);
+					source.buffer = buffer;
+					source.connect(filter).connect(ctx.destination);
+					source.start(now);
+				};
+
+				const toggleSound = () => {
+					state.audioOn = !state.audioOn;
+					if (soundToggle) {
+						soundToggle.setAttribute("aria-pressed", state.audioOn ? "true" : "false");
+					}
+					if (soundLabel) {
+						soundLabel.textContent = state.audioOn ? "Sound On" : "Sound Off";
+					}
+					if (state.audioOn) {
+						ensureAudio().resume();
+					}
+					if (soundToggle) {
+						soundToggle.blur();
+					}
+				};
+
+				const clearGroup = (group) => {
+					while (group.firstChild) {
+						group.removeChild(group.firstChild);
+					}
+				};
+
+				const createUse = (id, size, stroke, glow) => {
+					const use = document.createElementNS(svgNS, "use");
+					use.setAttribute("href", `#${id}`);
+					use.setAttribute("width", size.w);
+					use.setAttribute("height", size.h);
+					use.setAttribute("x", (-size.w / 2).toString());
+					use.setAttribute("y", (-size.h / 2).toString());
+					use.setAttribute("fill", "none");
+					use.setAttribute("stroke-width", "2.4");
+					use.setAttribute("stroke-linecap", "square");
+					use.setAttribute("stroke-linejoin", "miter");
+					use.style.stroke = stroke;
+					if (glow) {
+						use.style.filter = `drop-shadow(0 0 8px ${glow})`;
+					}
+					return use;
+				};
+
+				const setTransform = (node, x, y) => {
+					node.setAttribute("transform", `translate(${x} ${y})`);
+				};
+
+				const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+
+				const spawnFleet = () => {
+					clearGroup(alienFleet);
+					state.aliens = [];
+					state.direction = 1;
+					state.spawnActive = true;
+					state.spawnElapsed = 0;
+
+					const cols = 11;
+					const rows = 5;
+					const spacingX = 60;
+					const spacingY = 58;
+					const startX = 100;
+					const startY = 90;
+
+					for (let row = 0; row < rows; row += 1) {
+						let type = "crab";
+						if (row <= 1) {
+							type = "squid";
+						} else if (row === 2) {
+							type = "octopus";
+						}
+						for (let col = 0; col < cols; col += 1) {
+							const x = startX + col * spacingX;
+							const y = startY + row * spacingY;
+							const group = document.createElementNS(svgNS, "g");
+							const size = sizes[type];
+							const stroke = "var(--color-primary)";
+							const glow = "rgba(53, 245, 255, 0.6)";
+							const baseId = `alien-${type}`;
+							const altId = `alien-${type}-alt`;
+							const use = createUse(baseId, size, stroke, glow);
+							group.appendChild(use);
+
+							let startPos = { x, y };
+							let spawnStyle = "jitter";
+							if (type === "squid") {
+								const fromLeft = col % 2 === 0;
+								startPos = {
+									x: fromLeft ? -80 - col * 12 : width + 80 + col * 12,
+									y
+								};
+								spawnStyle = "line";
+							} else if (type === "octopus") {
+								startPos = {
+									x: width / 2 + (col - cols / 2) * 18,
+									y: -80 - row * 20
+								};
+								spawnStyle = "curve";
+							} else {
+								startPos = {
+									x: Math.random() * width,
+									y: Math.random() * (height * 0.6)
+								};
+								spawnStyle = "jitter";
+							}
+
+							setTransform(group, startPos.x, startPos.y);
+							alienFleet.appendChild(group);
+							state.aliens.push({
+								node: group,
+								use,
+								x: startPos.x,
+								y: startPos.y,
+								targetX: x,
+								targetY: y,
+								type,
+								baseId,
+								altId,
+								spawnStyle,
+								spin: Math.random() * Math.PI * 2,
+								w: size.w,
+								h: size.h
+							});
+						}
+					}
+				};
+
+				const spawnUfo = () => {
+					clearGroup(ufoLane);
+					const group = document.createElementNS(svgNS, "g");
+					const inner = document.createElementNS(svgNS, "g");
+					inner.classList.add("ufo-rotate");
+					const size = sizes.ufo;
+					const use = createUse(
+						"alien-ufo",
+						size,
+						"var(--color-accent-detail)",
+						"rgba(255, 79, 198, 0.7)"
+					);
+					inner.appendChild(use);
+					group.appendChild(inner);
+					setTransform(group, -size.w, 56);
+					ufoLane.appendChild(group);
+					state.ufo = { node: group, x: -size.w, y: 56, w: size.w, h: size.h, speed: 60 };
+				};
+
+				const spawnShields = () => {
+					clearGroup(shieldLine);
+					state.shields = [];
+					const positions = [150, 340, 560, 750];
+					positions.forEach((x) => {
+						const group = document.createElementNS(svgNS, "g");
+						const size = sizes.shield;
+						const use = createUse(
+							"shield-full",
+							size,
+							"var(--color-foreground)",
+							"rgba(230, 240, 255, 0.4)"
+						);
+						group.appendChild(use);
+						setTransform(group, x, height - 70);
+						shieldLine.appendChild(group);
+						state.shields.push({
+							node: group,
+							use,
+							x,
+							y: height - 70,
+							w: size.w,
+							h: size.h,
+							hp: 4
+						});
+					});
+				};
+
+				const spawnCannon = () => {
+					clearGroup(cannonRig);
+					const group = document.createElementNS(svgNS, "g");
+					const inner = document.createElementNS(svgNS, "g");
+					inner.classList.add("cannon-rotate");
+					const size = sizes.cannon;
+					const use = createUse("cannon", size, "var(--color-amber)", "rgba(233, 201, 81, 0.6)");
+					inner.appendChild(use);
+					group.appendChild(inner);
+					state.cannon = { x: width / 2, y: height - 20, w: size.w, h: size.h, node: group };
+					setTransform(group, state.cannon.x, state.cannon.y);
+					cannonRig.appendChild(group);
+				};
+
+				const resetBullets = () => {
+					state.bullets = [];
+					state.alienBullets = [];
+					clearGroup(shots);
+				};
+
+				const resetExplosions = () => {
+					state.explosions = [];
+					if (explosions) clearGroup(explosions);
+				};
+
+				const shoot = () => {
+					if (state.cooldown > 0) return;
+					state.cooldown = 0.35;
+					playTone(880, 0.08, "square", 0.05);
+					const bullet = document.createElementNS(svgNS, "line");
+					bullet.setAttribute("stroke-width", "3");
+					bullet.setAttribute("stroke-linecap", "square");
+					bullet.style.stroke = "var(--color-amber)";
+					bullet.style.filter = "drop-shadow(0 0 6px rgba(233, 201, 81, 0.7))";
+					const x = state.cannon.x;
+					const y = state.cannon.y - 12;
+					bullet.setAttribute("x1", x.toString());
+					bullet.setAttribute("x2", x.toString());
+					bullet.setAttribute("y1", y.toString());
+					bullet.setAttribute("y2", (y - 14).toString());
+					shots.appendChild(bullet);
+					state.bullets.push({ node: bullet, x, y, speed: 420 });
+				};
+
+				const isHit = (bullet, target) => {
+					const left = target.x - target.w / 2;
+					const right = target.x + target.w / 2;
+					const top = target.y - target.h / 2;
+					const bottom = target.y + target.h / 2;
+					return bullet.x >= left && bullet.x <= right && bullet.y <= bottom && bullet.y >= top;
+				};
+
+				const damageShield = (shield) => {
+					shield.hp -= 1;
+					if (shield.use) {
+						if (shield.hp === 3) {
+							shield.use.setAttribute("href", "#shield-mid");
+						} else if (shield.hp === 2) {
+							shield.use.setAttribute("href", "#shield-low");
+						} else if (shield.hp === 1) {
+							shield.use.setAttribute("href", "#shield-critical");
+						}
+					}
+					const opacity = Math.max(0.15, shield.hp / 4);
+					shield.node.style.opacity = opacity.toString();
+					shield.node.style.filter = `drop-shadow(0 0 12px rgba(230, 240, 255, ${0.15 + opacity * 0.45}))`;
+					if (shield.hp <= 0) {
+						shield.node.remove();
+						shield.node = null;
+					}
+				};
+
+				const spawnExplosion = (x, y, color, glow, radius = 18, duration = 0.6) => {
+					if (!explosions) return;
+					const group = document.createElementNS(svgNS, "g");
+					const count = 22;
+					const particles = [];
+					for (let i = 0; i < count; i += 1) {
+						const angle = Math.random() * Math.PI * 2;
+						const speed = 120 + Math.random() * 220;
+						const length = 6 + Math.random() * 14;
+						const line = document.createElementNS(svgNS, "line");
+						line.setAttribute("class", "explosion-line");
+						line.style.stroke = color;
+						line.style.strokeWidth = (2 + Math.random() * 2).toFixed(1);
+						if (glow) {
+							line.style.filter = `drop-shadow(0 0 8px ${glow})`;
+						}
+						group.appendChild(line);
+						particles.push({
+							line,
+							x,
+							y,
+							vx: Math.cos(angle) * speed,
+							vy: Math.sin(angle) * speed,
+							length,
+							angle
+						});
+					}
+					group.setAttribute("opacity", "1");
+					explosions.appendChild(group);
+					state.explosions.push({ node: group, particles, age: 0, duration, radius, kind: "burst" });
+				};
+
+				const spawnShockwave = (x, y, color) => {
+					if (!explosions) return;
+					const circle = document.createElementNS(svgNS, "circle");
+					circle.setAttribute("cx", x.toFixed(1));
+					circle.setAttribute("cy", y.toFixed(1));
+					circle.setAttribute("r", "4");
+					circle.setAttribute("fill", "none");
+					circle.setAttribute("stroke", color);
+					circle.setAttribute("stroke-width", "2.4");
+					circle.style.filter = "drop-shadow(0 0 8px rgba(255, 79, 198, 0.7))";
+					explosions.appendChild(circle);
+					state.explosions.push({ node: circle, age: 0, duration: 0.7, kind: "shockwave" });
+				};
+
+				const updateSpawn = (dt) => {
+					if (!state.spawnActive) return;
+					state.spawnElapsed += dt;
+					const duration = 1.8;
+					const t = Math.min(state.spawnElapsed / duration, 1);
+					const eased = easeOut(t);
+
+					state.aliens.forEach((alien, index) => {
+						if (alien.spawnStyle === "line") {
+							alien.x = alien.x + (alien.targetX - alien.x) * eased;
+							alien.y = alien.targetY;
+						} else if (alien.spawnStyle === "curve") {
+							const curve = Math.sin(t * Math.PI) * 40;
+							const drift = Math.cos(t * Math.PI * 2 + alien.spin) * 20;
+							alien.x = alien.targetX + drift * (1 - t);
+							alien.y = alien.targetY - curve * (1 - t);
+						} else {
+							const jitter = (1 - t) * 14;
+							alien.x =
+								alien.targetX +
+								(Math.random() - 0.5) * jitter +
+								(alien.x - alien.targetX) * (1 - t);
+							alien.y =
+								alien.targetY +
+								(Math.random() - 0.5) * jitter +
+								(alien.y - alien.targetY) * (1 - t);
+						}
+						setTransform(alien.node, alien.x, alien.y);
+					});
+
+					if (t >= 1) {
+						state.spawnActive = false;
+						state.aliens.forEach((alien) => {
+							alien.x = alien.targetX;
+							alien.y = alien.targetY;
+							setTransform(alien.node, alien.x, alien.y);
+						});
+					}
+				};
+
+				const updateAliens = (dt) => {
+					if (!state.aliens.length) return;
+
+					const speed = state.fleetSpeed + (55 - state.aliens.length) * 0.6 + state.wave * 6;
+					let minX = Infinity;
+					let maxX = -Infinity;
+					state.aliens.forEach((alien) => {
+						minX = Math.min(minX, alien.x - alien.w / 2);
+						maxX = Math.max(maxX, alien.x + alien.w / 2);
+					});
+
+					const edgeLeft = 30;
+					const edgeRight = width - 30;
+					const step = speed * dt * state.direction;
+					const hitEdge = maxX + step > edgeRight || minX + step < edgeLeft;
+
+					state.aliens.forEach((alien) => {
+						alien.x += hitEdge ? 0 : step;
+						if (hitEdge) {
+							alien.y += state.stepDown;
+						}
+						setTransform(alien.node, alien.x, alien.y);
+					});
+
+					if (hitEdge) {
+						state.direction *= -1;
+					}
+				};
+
+				const updateAlienFrames = (dt) => {
+					state.frameTimer += dt;
+					if (state.frameTimer < 0.45) return;
+					state.frameTimer = 0;
+					state.frameToggle = !state.frameToggle;
+					state.aliens.forEach((alien) => {
+						const target = state.frameToggle ? alien.altId : alien.baseId;
+						if (alien.use) alien.use.setAttribute("href", `#${target}`);
+					});
+				};
+
+				const updateUfo = (dt) => {
+					if (!state.ufo) return;
+					state.ufo.x += state.ufo.speed * dt;
+					if (state.ufo.x > width + state.ufo.w) {
+						state.ufo.x = -state.ufo.w;
+					}
+					setTransform(state.ufo.node, state.ufo.x, state.ufo.y);
+				};
+
+				const updateBullets = (dt) => {
+					state.bullets = state.bullets.filter((bullet) => {
+						bullet.y -= bullet.speed * dt;
+						bullet.node.setAttribute("y1", bullet.y.toString());
+						bullet.node.setAttribute("y2", (bullet.y - 14).toString());
+						if (bullet.y < 40) {
+							bullet.node.remove();
+							return false;
+						}
+
+						for (const shield of state.shields) {
+							if (shield.node && isHit(bullet, shield)) {
+								damageShield(shield);
+								bullet.node.remove();
+								return false;
+							}
+						}
+
+						let hitIndex = -1;
+						for (let i = 0; i < state.aliens.length; i += 1) {
+							if (isHit(bullet, state.aliens[i])) {
+								hitIndex = i;
+								break;
+							}
+						}
+
+						if (hitIndex !== -1) {
+							const [alien] = state.aliens.splice(hitIndex, 1);
+							alien.node.remove();
+							bullet.node.remove();
+							spawnExplosion(alien.x, alien.y, "var(--color-primary)", "rgba(53, 245, 255, 0.8)");
+							playNoiseHit(0.12);
+							state.score += alien.type === "squid" ? 30 : 20;
+							updateHud();
+							return false;
+						}
+
+						if (state.ufo && isHit(bullet, state.ufo)) {
+							state.score += 150;
+							updateHud();
+							bullet.node.remove();
+							spawnExplosion(
+								state.ufo.x,
+								state.ufo.y,
+								"var(--color-accent-detail)",
+								"rgba(255, 79, 198, 0.9)"
+							);
+							spawnShockwave(state.ufo.x, state.ufo.y, "var(--color-accent-detail)");
+							playTone(220, 0.25, "sawtooth", 0.08);
+							state.ufo.x = width + state.ufo.w;
+							setTransform(state.ufo.node, state.ufo.x, state.ufo.y);
+							return false;
+						}
+
+						return true;
+					});
+				};
+
+				const shootAlien = () => {
+					if (!state.aliens.length) return;
+					const shooter = state.aliens[Math.floor(Math.random() * state.aliens.length)];
+					const bullet = document.createElementNS(svgNS, "line");
+					bullet.setAttribute("stroke-width", "3");
+					bullet.setAttribute("stroke-linecap", "square");
+					bullet.style.stroke = "var(--color-accent-detail)";
+					bullet.style.filter = "drop-shadow(0 0 6px rgba(255, 79, 198, 0.6))";
+					const x = shooter.x;
+					const y = shooter.y + shooter.h / 2 + 4;
+					bullet.setAttribute("x1", x.toString());
+					bullet.setAttribute("x2", x.toString());
+					bullet.setAttribute("y1", y.toString());
+					bullet.setAttribute("y2", (y + 14).toString());
+					shots.appendChild(bullet);
+					state.alienBullets.push({ node: bullet, x, y, speed: 260 });
+				};
+
+				const updateAlienBullets = (dt) => {
+					state.alienBullets = state.alienBullets.filter((bullet) => {
+						if (state.gameOverPending) {
+							bullet.node.remove();
+							return false;
+						}
+						bullet.y += bullet.speed * dt;
+						bullet.node.setAttribute("y1", bullet.y.toString());
+						bullet.node.setAttribute("y2", (bullet.y + 14).toString());
+
+						for (const shield of state.shields) {
+							if (shield.node && isHit(bullet, shield)) {
+								damageShield(shield);
+								bullet.node.remove();
+								return false;
+							}
+						}
+
+						if (isHit(bullet, state.cannon)) {
+							bullet.node.remove();
+							spawnExplosion(
+								state.cannon.x,
+								state.cannon.y - 1,
+								"var(--color-amber)",
+								"rgba(233, 201, 81, 0.9)",
+								26,
+								0.55
+							);
+							playTone(140, 0.2, "sawtooth", 0.08);
+							state.lives = Math.max(0, state.lives - 1);
+							updateHud();
+							if (state.lives <= 0) {
+								state.gameOverPending = true;
+								state.gameOverAt = performance.now() + 500;
+								state.alienBullets.forEach((shot) => shot.node.remove());
+								state.alienBullets = [];
+								return false;
+							}
+							return false;
+						}
+
+						if (bullet.y > height - 20) {
+							bullet.node.remove();
+							return false;
+						}
+
+						return true;
+					});
+				};
+
+				const updateExplosions = (dt) => {
+					state.explosions = state.explosions.filter((explosion) => {
+						explosion.age += dt;
+						const progress = Math.min(explosion.age / explosion.duration, 1);
+						const opacity = 1 - progress;
+						explosion.node.setAttribute("opacity", opacity.toFixed(2));
+
+						if (explosion.kind === "shockwave") {
+							const radius = 4 + progress * 120;
+							explosion.node.setAttribute("r", radius.toFixed(1));
+							explosion.node.setAttribute("stroke-width", (2.4 - progress * 1.6).toFixed(2));
+						} else {
+							explosion.particles.forEach((particle) => {
+								particle.x += particle.vx * dt;
+								particle.y += particle.vy * dt;
+								const drift = progress * 0.7;
+								const dx = Math.cos(particle.angle + drift);
+								const dy = Math.sin(particle.angle + drift);
+								const x1 = particle.x;
+								const y1 = particle.y;
+								const x2 = particle.x + dx * particle.length;
+								const y2 = particle.y + dy * particle.length;
+								particle.line.setAttribute("x1", x1.toFixed(1));
+								particle.line.setAttribute("y1", y1.toFixed(1));
+								particle.line.setAttribute("x2", x2.toFixed(1));
+								particle.line.setAttribute("y2", y2.toFixed(1));
+							});
+						}
+						if (progress >= 1) {
+							explosion.node.remove();
+							return false;
+						}
+						return true;
+					});
+				};
+
+				const updateCannon = (dt) => {
+					let velocity = 0;
+					if (state.keys.left) velocity -= 1;
+					if (state.keys.right) velocity += 1;
+					if (velocity !== 0) {
+						state.cannon.x += velocity * 260 * dt;
+						const minX = 70;
+						const maxX = width - 70;
+						state.cannon.x = Math.min(Math.max(state.cannon.x, minX), maxX);
+						setTransform(state.cannon.node, state.cannon.x, state.cannon.y);
+					}
+				};
+
+				const checkEndConditions = () => {
+					if (!state.aliens.length) {
+						state.wave += 1;
+						spawnFleet();
+						updateHud();
+					}
+
+					const breach = state.aliens.some(
+						(alien) => alien.y + alien.h / 2 > state.cannon.y - 10
+					);
+					if (breach) {
+						state.running = false;
+						if (overlay) {
+							overlay.classList.remove("hidden");
+							if (overlayMessage) {
+								overlayMessage.textContent = "Breach detected. Press start to retry.";
+							}
+						}
+					}
+				};
+
+				const loop = (time) => {
+					if (!state.running) return;
+					const delta = Math.min((time - state.lastTime) / 1000, 0.05);
+					state.lastTime = time;
+					state.cooldown = Math.max(0, state.cooldown - delta);
+					state.alienCooldown = Math.max(0, state.alienCooldown - delta);
+					if (!state.gameOverPending) {
+						updateCannon(delta);
+						updateSpawn(delta);
+						if (!state.spawnActive) {
+							updateAliens(delta);
+						}
+						updateHudMessage(delta);
+						updateAlienFrames(delta);
+						updateUfo(delta);
+						updateBullets(delta);
+						updateAlienBullets(delta);
+					} else {
+						updateAlienBullets(delta);
+					}
+					updateExplosions(delta);
+					if (!state.gameOverPending && state.alienCooldown === 0) {
+						state.alienCooldown = 0.9;
+						shootAlien();
+					}
+					if (state.gameOverPending && time >= state.gameOverAt) {
+						state.running = false;
+						state.gameOverPending = false;
+						if (overlay) {
+							overlay.classList.remove("hidden");
+							if (overlayMessage) {
+								overlayMessage.textContent = "Systems down. Press start to reboot.";
+							}
+						}
+						return;
+					}
+					checkEndConditions();
+					requestAnimationFrame(loop);
+				};
+
+				const startGame = () => {
+					state.running = true;
+					state.lastTime = performance.now();
+					state.score = 0;
+					state.lives = 3;
+					state.wave = 1;
+					state.cooldown = 0;
+					state.alienCooldown = 0.6;
+					state.gameOverAt = 0;
+					state.gameOverPending = false;
+					state.frameTimer = 0;
+					state.frameToggle = false;
+					state.spawnActive = false;
+					state.spawnElapsed = 0;
+					state.messageTimer = 0;
+					state.messageIndex = 0;
+					if (hudMessages) {
+						hudMessages.textContent = "Vector uplink stable.";
+					}
+					updateHud();
+					resetBullets();
+					resetExplosions();
+					spawnFleet();
+					spawnUfo();
+					spawnShields();
+					spawnCannon();
+					if (overlay) overlay.classList.add("hidden");
+					if (overlayMessage) {
+						overlayMessage.textContent = "Vector controls: arrows to move, space to fire";
+					}
+					requestAnimationFrame(loop);
+				};
+
+				const handleKey = (event, down) => {
+					switch (event.code) {
+						case "ArrowLeft":
+						case "KeyA":
+							state.keys.left = down;
+							break;
+						case "ArrowRight":
+						case "KeyD":
+							state.keys.right = down;
+							break;
+						case "Space":
+							if (down && state.running) shoot();
+							break;
+						case "KeyM":
+							if (down) toggleSound();
+							break;
+						case "Enter":
+							if (down && !state.running) startGame();
+							break;
+						default:
+							break;
+					}
+				};
+
+				window.addEventListener("keydown", (event) => handleKey(event, true));
+				window.addEventListener("keyup", (event) => handleKey(event, false));
+
+				svg.addEventListener("click", () => {
+					if (state.running) shoot();
+				});
+
+				if (startBtn) {
+					startBtn.addEventListener("click", startGame);
+				}
+
+				if (soundToggle) {
+					soundToggle.addEventListener("click", toggleSound);
+				}
+
+				updateHud();
+				spawnShields();
+				spawnCannon();
+			})();
+		</script>
+	</body>
+</html>

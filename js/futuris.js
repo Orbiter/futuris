@@ -7,7 +7,8 @@ const pages = [
 	{ title: "LLM", href: "LLM.html" },
 	{ title: "Calendar", href: "calendar.html" },
 	{ title: "Chess", href: "chess.html" },
-	{ title: "Isometric", href: "isometric.html" }
+	{ title: "Isometric", href: "isometric.html" },
+	{ title: "Invaders", href: "invaders.html" }
 ];
 
 const toc = document.getElementById("toc");
