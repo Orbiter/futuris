@@ -1,6 +1,23 @@
 /**
  * Virtual File System (VFS) using IndexedDB with Bash-like Commands
+ * (C) 2026 by Michael Peter Christen
  *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program in the file lgpl21.txt
+ * If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
  * This script implements a simple key-value store using IndexedDB, which is a low-level API
  * for client-side storage of significant amounts of structured data, including files/blobs.
  * This API uses indexes to enable high-performance searches of this data.
@@ -338,7 +355,93 @@ openRequest.onsuccess = function (event) {
           reject(`Error listing directory at ${path}: ${event.target.errorCode}`);
         };
       });
-    },    
+    },
+    normalizeDirPath: function (path) {
+      if (!path || path === '/') {
+        return '/';
+      }
+      if (!path.startsWith('/')) {
+        throw new Error('Invalid directory path');
+      }
+      return path.endsWith('/') ? path : `${path}/`;
+    },
+    parentDir: function (path) {
+      if (!path || path === '/') {
+        return '/';
+      }
+      if (!path.startsWith('/')) {
+        throw new Error('Invalid path');
+      }
+      if (path.endsWith('/')) {
+        return this.normalizeDirPath(path);
+      }
+      const index = path.lastIndexOf('/');
+      return index <= 0 ? '/' : path.substring(0, index + 1);
+    },
+    baseName: function (path) {
+      if (!path || path === '/') {
+        return '';
+      }
+      const trimmed = path.endsWith('/') ? path.slice(0, -1) : path;
+      const parts = trimmed.split('/').filter(Boolean);
+      return parts[parts.length - 1] || '';
+    },
+    mkdir: async function (path) {
+      const dirPath = this.normalizeDirPath(path);
+      await this.put(dirPath, '');
+      return dirPath;
+    },
+    deleteTree: async function (path) {
+      if (!path || !path.startsWith('/')) {
+        throw new Error('Invalid path');
+      }
+      if (path.endsWith('/')) {
+        const contents = await this.ls(path);
+        for (const entry of contents) {
+          if (!entry) continue;
+          await this.rm(`${path}${entry}`);
+        }
+        if (path !== '/') {
+          await this.rm(path);
+        }
+        return;
+      }
+      await this.rm(path);
+    },
+    moveTree: async function (srcPath, destDir) {
+      if (!srcPath || !srcPath.startsWith('/')) {
+        throw new Error('Invalid source path');
+      }
+      const targetDir = this.normalizeDirPath(destDir);
+      const isFolder = srcPath.endsWith('/');
+      const name = this.baseName(srcPath);
+      if (!name) {
+        return srcPath;
+      }
+      const destPath = `${targetDir}${name}${isFolder ? '/' : ''}`;
+
+      if (destPath === srcPath) {
+        return destPath;
+      }
+      if (isFolder && targetDir.startsWith(srcPath)) {
+        throw new Error('Cannot move a folder into itself.');
+      }
+
+      if (targetDir !== '/') {
+        await this.mkdir(targetDir);
+      }
+
+      if (isFolder) {
+        const contents = await this.ls(srcPath);
+        for (const entry of contents) {
+          if (!entry) continue;
+          await this.mv(`${srcPath}${entry}`, `${destPath}${entry}`);
+        }
+      }
+
+      await this.mv(srcPath, destPath);
+      return destPath;
+    },
     cat: function (path) {
       // Display the contents of a file at the specified path.
       if (path.endsWith('/')) {
