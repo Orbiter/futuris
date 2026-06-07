@@ -3,8 +3,9 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="color-scheme" content="dark" />
 		<title>Chess</title>
-		<link rel="stylesheet" href="css/futuris.css" />
+		<link rel="stylesheet" href="css/futuris.css?v=1f58c4f0" />
 		<style>
 			/*
 				Template note: keep Futuris classless rules, use the minimum
@@ -12,36 +13,39 @@
 				to enforce a strict 8x8 grid and stable square sizing.
 			*/
 			:root {
-				--board-size: min(72vmin, 520px);
-				--frame-size: calc(var(--board-size) + 64px);
-				--shell-size: calc(var(--board-size) + 86px);
+				--board-size: min(70vmin, 32.5rem, 100vw - 2 * var(--page-gutter) - 2 * var(--panel-padding) - 4.5rem);
+				--shell-size: calc(var(--board-size) + 68px);
 			}
 			.chess-board {
 				display: grid;
 				grid-template-columns: repeat(8, 1fr);
 				width: 100%;
 				aspect-ratio: 1 / 1;
-				border: 2px solid currentColor;
+				outline: 1px solid var(--color-border);
 			}
 			.chess-square {
+				padding: 0;
+				border: 0;
+				border-radius: 0;
 				display: grid;
 				place-items: center;
 				width: 100%;
 				height: 100%;
 				aspect-ratio: 1 / 1;
-				font-size: clamp(1.6rem, 3.8vw, 2.6rem);
+				font-size: clamp(0.95rem, 4.2vw, 2.6rem);
 				user-select: none;
 			}
 			.chess-square[data-color="light"] {
-				background: linear-gradient(135deg, rgba(158, 247, 255, 0.75), rgba(255, 140, 245, 0.55));
+				background: #7182a5;
 				color: inherit;
 			}
 			.chess-square[data-color="dark"] {
-				background: linear-gradient(135deg, rgba(34, 48, 78, 0.95), rgba(64, 28, 92, 0.92));
+				background: #222e48;
 				color: inherit;
 			}
+			.chess-square[aria-pressed="true"],
 			.chess-square[data-highlight="true"] {
-				outline: 2px solid #d3b27a;
+				outline: 2px solid var(--color-highlight);
 				outline-offset: -2px;
 			}
 			.chess-square > span {
@@ -51,15 +55,13 @@
 			}
 			.chess-square > span[data-piece-color="white"],
 			span[data-piece-color="white"][data-floating="true"] {
-				color: #e9f6ff;
-				text-shadow: 0 0 8px rgba(0, 196, 255, 0.7), 0 0 4px rgba(0, 196, 255, 0.9),
-					0 0 14px rgba(255, 140, 245, 0.5), 0 0 22px rgba(255, 140, 245, 0.35);
+				color: var(--color-foreground);
+				text-shadow: 0 1px 3px #03050a;
 			}
 			.chess-square > span[data-piece-color="black"],
 			span[data-piece-color="black"][data-floating="true"] {
-				color: #0b0f16;
-				text-shadow: 0 0 8px rgba(255, 59, 244, 0.7), 0 0 4px rgba(255, 59, 244, 0.9),
-					0 0 14px rgba(0, 196, 255, 0.6), 0 0 22px rgba(0, 196, 255, 0.35);
+				color: #080a12;
+				text-shadow: 0 0 2px var(--color-highlight);
 			}
 			.chess-square > span:active {
 				cursor: grabbing;
@@ -79,20 +81,25 @@
 			}
 			#board-shell {
 				display: inline-block;
-				padding: 10px;
-				border: 1px solid rgba(0, 196, 255, 0.35);
-				background: linear-gradient(135deg, rgba(7, 12, 22, 0.6), rgba(20, 10, 26, 0.6));
-				box-shadow: 0 0 24px rgba(0, 196, 255, 0.2);
+				padding: 8px;
+				border: 1px solid var(--color-border);
+				border-radius: var(--radius);
+				background: var(--color-surface-inset);
+			}
+			#board-shell + p {
+				display: flex;
+				align-items: center;
+				flex-wrap: wrap;
+				gap: 0.65rem 1rem;
+				margin-top: 0.75rem;
 			}
 			#board-frame {
 				display: grid;
-				grid-template-columns: 24px var(--board-size) 24px;
-				grid-template-rows: 24px var(--board-size) 24px;
-				gap: 8px;
+				grid-template-columns: 20px var(--board-size) 20px;
+				grid-template-rows: 20px var(--board-size) 20px;
+				gap: 5px;
 				align-items: center;
 				justify-items: center;
-				width: var(--frame-size);
-				height: var(--frame-size);
 			}
 			#file-labels-top,
 			#file-labels-bottom {
@@ -102,8 +109,7 @@
 				text-transform: lowercase;
 				font-size: 0.85rem;
 				letter-spacing: 0.04em;
-				color: #7ee6ff;
-				text-shadow: 0 0 6px rgba(0, 196, 255, 0.6);
+				color: var(--color-amber);
 			}
 			#rank-labels-left,
 			#rank-labels-right {
@@ -112,8 +118,7 @@
 				height: var(--board-size);
 				font-size: 0.85rem;
 				letter-spacing: 0.04em;
-				color: #7ee6ff;
-				text-shadow: 0 0 6px rgba(0, 196, 255, 0.6);
+				color: var(--color-amber);
 			}
 			#file-labels-top span,
 			#file-labels-bottom span,
@@ -122,10 +127,6 @@
 				display: grid;
 				place-items: center;
 				min-height: 18px;
-			}
-			#board-frame .corner {
-				width: 24px;
-				height: 24px;
 			}
 			#moveList {
 				display: grid;
@@ -140,9 +141,9 @@
 				position: relative;
 				gap: 16px;
 				padding: 10px;
-				border: 1px solid rgba(0, 196, 255, 0.35);
-				background: linear-gradient(135deg, rgba(6, 10, 22, 0.7), rgba(18, 8, 28, 0.7));
-				box-shadow: inset 0 0 14px rgba(0, 196, 255, 0.2);
+				border: 1px solid var(--color-border);
+				border-radius: var(--radius);
+				background: var(--color-surface-inset);
 				height: var(--shell-size);
 			}
 			#score-panel h3 {
@@ -150,8 +151,7 @@
 				font-size: 0.8rem;
 				letter-spacing: 0.08em;
 				text-transform: uppercase;
-				color: #7ee6ff;
-				text-shadow: 0 0 6px rgba(0, 196, 255, 0.6);
+				color: var(--color-amber);
 			}
 			.score-line {
 				display: grid;
@@ -177,17 +177,15 @@
 			}
 			.score-value {
 				font-variant-numeric: tabular-nums;
-				color: #e9f6ff;
-				text-shadow: 0 0 6px rgba(0, 196, 255, 0.6);
+				color: var(--color-foreground);
 			}
 			.score-gauge {
 				position: relative;
 				width: 110px;
 				height: 70px;
 				border-radius: 120px 120px 12px 12px;
-				border: 1px solid rgba(0, 196, 255, 0.45);
-				background: radial-gradient(circle at 50% 80%, rgba(0, 196, 255, 0.18), rgba(7, 12, 22, 0.9));
-				box-shadow: inset 0 0 12px rgba(0, 196, 255, 0.2);
+				border: 1px solid var(--color-border);
+				background: radial-gradient(circle at 50% 80%, var(--color-glow), var(--color-surface-inset));
 				overflow: hidden;
 			}
 			.score-gauge::before {
@@ -195,7 +193,7 @@
 				position: absolute;
 				inset: 8px 10px 12px;
 				border-radius: 100px 100px 8px 8px;
-				border: 1px dashed rgba(126, 230, 255, 0.4);
+				border: 1px dashed var(--color-border);
 			}
 			.score-needle {
 				position: absolute;
@@ -203,8 +201,7 @@
 				bottom: 10px;
 				width: 2px;
 				height: 42px;
-				background: #e9f6ff;
-				box-shadow: 0 0 10px rgba(0, 196, 255, 0.8);
+				background: var(--color-primary);
 				transform-origin: bottom center;
 				transform: translateX(-50%) rotate(-60deg);
 			}
@@ -215,19 +212,18 @@
 				bottom: -4px;
 				width: 8px;
 				height: 8px;
-				background: #0b0f16;
-				border: 1px solid rgba(0, 196, 255, 0.6);
+				background: var(--color-background);
+				border: 1px solid var(--color-border);
 				border-radius: 50%;
 				transform: translateX(-50%);
 			}
 			#score-panel .black .score-gauge {
-				background: radial-gradient(circle at 50% 80%, rgba(255, 59, 244, 0.18), rgba(7, 12, 22, 0.9));
+				background: radial-gradient(circle at 50% 80%, var(--color-glow-strong), var(--color-surface-inset));
 			}
 			#score-panel .black .score-needle {
-				background: #f4f6ff;
-				box-shadow: 0 0 12px rgba(255, 59, 244, 0.9), 0 0 6px rgba(255, 255, 255, 0.7);
+				background: var(--color-accent-detail);
 			}
-			@media (max-width: 900px) {
+			@media (max-width: 75rem) {
 				#chess-layout {
 					grid-template-columns: 1fr;
 				}
@@ -252,12 +248,12 @@
 		</style>
 	</head>
 	<body>
+		<iframe id="site-menu" title="Pages" src="navigation.html#chess"></iframe>
 		<!--\n\t\t\tThis page is meant to be a minimal example\n\t\t\tfor board games. It keeps markup semantic, relies on Futuris, and only adds two\n\t\t\tclasses for the board grid and squares.\n\t\t-->
 		<header>
-			<nav id="site-nav" aria-label="Pages"></nav>
 			<h1>Chess Board</h1>
 			<p>
-				Drag pieces to move. Both sides can move. No check, castling, or en passant
+				Select a piece and its destination, or drag it to move. Both sides can move. No check, castling, or en passant
 				logic yet.
 			</p>
 		</header>
@@ -269,13 +265,21 @@
 						<div id="board-shell">
 							<div id="board-frame" aria-label="Chess board with coordinates">
 								<div class="corner" aria-hidden="true"></div>
-								<div id="file-labels-top" aria-hidden="true"></div>
+								<div id="file-labels-top" aria-hidden="true">
+									<span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span><span>g</span><span>h</span>
+								</div>
 								<div class="corner" aria-hidden="true"></div>
-								<div id="rank-labels-left" aria-hidden="true"></div>
+								<div id="rank-labels-left" aria-hidden="true">
+									<span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span>
+								</div>
 								<div id="board" class="chess-board" aria-label="Chess board"></div>
-								<div id="rank-labels-right" aria-hidden="true"></div>
+								<div id="rank-labels-right" aria-hidden="true">
+									<span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span>
+								</div>
 								<div class="corner" aria-hidden="true"></div>
-								<div id="file-labels-bottom" aria-hidden="true"></div>
+								<div id="file-labels-bottom" aria-hidden="true">
+									<span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span><span>g</span><span>h</span>
+								</div>
 								<div class="corner" aria-hidden="true"></div>
 							</div>
 						</div>
@@ -320,7 +324,6 @@
 			</main>
 		</div>
 
-		<script src="js/futuris.js"></script>
 		<script>
 			const boardEl = document.getElementById("board");
 			const moveListEl = document.getElementById("moveList");
@@ -330,10 +333,6 @@
 			const blackNeedleEl = document.getElementById("black-needle");
 			const nextMoveEl = document.getElementById("next-move");
 			const guessMoveEl = document.getElementById("guess-move");
-			const fileLabelsTopEl = document.getElementById("file-labels-top");
-			const fileLabelsBottomEl = document.getElementById("file-labels-bottom");
-			const rankLabelsLeftEl = document.getElementById("rank-labels-left");
-			const rankLabelsRightEl = document.getElementById("rank-labels-right");
 			const PROXIMITY_MAX_MOVES = 5;
 			const scoresProximityMax = { white: 0, black: 0 };
 			const scoresDistanceMax = { white: 0, black: 0 };
@@ -351,6 +350,7 @@
 			// - Move generation returns indices (0..63) instead of SAN; SAN is only for logging/IO.
 			const board = Array(64).fill('.');
 
+			const pieceNames = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
 			const pieceToGlyph = {
 				k: "\u2654",
 				q: "\u2655",
@@ -416,12 +416,12 @@
 				return file >= 0 && file < 8 && rank >= 0 && rank < 8;
 			}
 
-			function getMovesFrom(index) {
+			function getMovesFrom(index, position = board) {
 				// Move generator contract:
 				// - Input: one index (0..63).
 				// - Output: array of target indices (0..63).
 				// - Does not use SAN internally.
-				const piece = board[index];
+				const piece = position[index];
 				if (piece === '.') return [];
 				const moves = [];
 				const file = index % 8;
@@ -433,22 +433,20 @@
 					const dir = white ? 1 : -1;
 					const startRank = white ? 1 : 6;
 					const oneStep = (rank + dir) * 8 + file;
-					if (inBounds(file, rank + dir) && board[oneStep] === '.') {
+					if (inBounds(file, rank + dir) && position[oneStep] === '.') {
 						moves.push(oneStep);
 						if (rank === startRank) {
 							const twoStep = (rank + dir * 2) * 8 + file;
-							const intermediateStep = (rank + dir) * 8 + file;
-							if (inBounds(file, rank + dir * 2) && board[twoStep] === '.' && board[intermediateStep] === '.') {
+							if (inBounds(file, rank + dir * 2) && position[twoStep] === '.') {
 								moves.push(twoStep);
 							}
 						}
 					}
 					const captureFiles = [file - 1, file + 1];
-					const promotionRank = white ? 7 : 0;
 					for (const f of captureFiles) {
 						if (!inBounds(f, rank + dir)) continue;
 						const target = (rank + dir) * 8 + f;
-						const targetPiece = board[target];
+						const targetPiece = position[target];
 						if (white ? isBlack(targetPiece) : isWhite(targetPiece)) {
 							moves.push(target);
 						}
@@ -472,7 +470,7 @@
 						const r = rank + dy;
 						if (!inBounds(f, r)) continue;
 						const target = r * 8 + f;
-						const targetPiece = board[target];
+						const targetPiece = position[target];
 						if (
 							targetPiece === '.' ||
 							(white ? isBlack(targetPiece) : isWhite(targetPiece))
@@ -491,7 +489,7 @@
 							const r = rank + dy;
 							if (!inBounds(f, r)) continue;
 							const target = r * 8 + f;
-							const targetPiece = board[target];
+							const targetPiece = position[target];
 							if (
 								targetPiece === '.' ||
 								(white ? isBlack(targetPiece) : isWhite(targetPiece))
@@ -516,7 +514,7 @@
 						let r = rank + dy;
 						while (inBounds(f, r)) {
 							const target = r * 8 + f;
-							const targetPiece = board[target];
+							const targetPiece = position[target];
 							if (targetPiece === '.') {
 								moves.push(target);
 							} else {
@@ -576,16 +574,20 @@
 			}
 
 			function renderBoard() {
-				boardEl.innerHTML = '';
+				boardEl.replaceChildren();
 				for (let rank = 7; rank >= 0; rank--) {
 					for (let file = 0; file < 8; file++) {
 						const index = rank * 8 + file;
-						const square = document.createElement('div');
+						const square = document.createElement('button');
+						square.type = 'button';
 						square.className = 'chess-square';
 						square.dataset.index = index;
 						square.dataset.square = indexToSquare(index);
 						square.dataset.color = (rank + file) % 2 === 0 ? 'light' : 'dark';
 						const piece = board[index];
+						const description = piece === '.' ? 'empty' :
+							(isWhite(piece) ? 'white ' : 'black ') + pieceNames[piece.toLowerCase()];
+						square.setAttribute('aria-label', square.dataset.square + ', ' + description);
 						if (piece !== '.') {
 							const pieceEl = document.createElement('span');
 							pieceEl.textContent = pieceToGlyph[piece] || piece;
@@ -595,8 +597,6 @@
 							pieceEl.addEventListener('dragstart', onDragStart);
 							square.appendChild(pieceEl);
 						}
-						square.addEventListener('dragover', onDragOver);
-						square.addEventListener('drop', onDrop);
 						boardEl.appendChild(square);
 					}
 				}
@@ -607,21 +607,21 @@
 				checkWinCondition();
 			}
 
-			function calculateScores() {
+			function calculateScores(position = board) {
 				// pieceScores: higher is better (more material retained).
-				const pieceScores = calculatePieceCountScores();
+				const pieceScores = calculatePieceCountScores(position);
 				// proximityScores: lower is better (fewer moves to reach opponent king).
 				const proximityScores = {
-					white: getProximityScore("white", PROXIMITY_MAX_MOVES),
-					black: getProximityScore("black", PROXIMITY_MAX_MOVES)
+					white: getProximityScore("white", PROXIMITY_MAX_MOVES, position),
+					black: getProximityScore("black", PROXIMITY_MAX_MOVES, position)
 				};
 				// distanceScore: lower is better (closer in straight-line distance to opponent king).
 				const distanceScore = {
-					white: getDistanceScore("white"),
-					black: getDistanceScore("black")
+					white: getDistanceScore("white", position),
+					black: getDistanceScore("black", position)
 				};
 				// pawnScores: higher is better (pawns closer to opponent baseline).
-				const pawnScores = calculatePawnScores();
+				const pawnScores = calculatePawnScores(position);
 				// Invert proximity + distance so higher is better, then combine with material score.
 				return {
 					white:
@@ -639,10 +639,10 @@
 				};
 			}
 
-			function calculatePieceCountScores() {
+			function calculatePieceCountScores(position = board) {
 				let white = 0;
 				let black = 0;
-				for (const piece of board) {
+				for (const piece of position) {
 					if (piece === '.') continue;
 					const value = pieceValues[piece.toLowerCase()] || 0;
 					if (isWhite(piece)) white += value;
@@ -674,11 +674,11 @@
 				return pawnsPerSide * maxAdvance;
 			}
 
-			function calculatePawnScores() {
+			function calculatePawnScores(position = board) {
 				let white = 0;
 				let black = 0;
-				for (let i = 0; i < board.length; i++) {
-					const piece = board[i];
+				for (let i = 0; i < position.length; i++) {
+					const piece = position[i];
 					if (piece === '.') continue;
 					if (piece.toLowerCase() !== 'p') continue;
 					const rank = Math.floor(i / 8);
@@ -698,18 +698,6 @@
 				const blackAngle = -90 + (scores.black / maxScore) * 180;
 				whiteNeedleEl.style.transform = `translateX(-50%) rotate(${whiteAngle}deg)`;
 				blackNeedleEl.style.transform = `translateX(-50%) rotate(${blackAngle}deg)`;
-			}
-
-			function applyMove(from, to, options = {}) {
-				if (options.animate) {
-					guessMoveEl.disabled = true;
-					animateMove(from, to, () => {
-						commitMove(from, to);
-						guessMoveEl.disabled = false;
-					});
-					return;
-				}
-				commitMove(from, to);
 			}
 
 			function commitMove(from, to) {
@@ -800,12 +788,12 @@
 					if (piece === '.') continue;
 					if (color === "white" && !isWhite(piece)) continue;
 					if (color === "black" && !isBlack(piece)) continue;
-					const moves = getMovesFromWithBoard(i, boardState);
+					const moves = getMovesFrom(i, boardState);
 					for (const target of moves) {
 						const nextBoard = boardState.slice();
 						nextBoard[target] = nextBoard[i];
 						nextBoard[i] = '.';
-						const scores = calculateScoresWithBoard(nextBoard);
+						const scores = calculateScores(nextBoard);
 						const ranking =
 							color === "white"
 								? scores.white - scores.black
@@ -819,26 +807,26 @@
 			}
 
 			function computeMove() {
+				selectSquare(null);
 				const next = getNextMoveColor();
 				const colors = next ? [next] : ["white", "black"];
 				let best = null;
 
 				for (const color of colors) {
-					const baseBoard = board.slice();
 					const opponentColor = getOppositeColor(color);
-					for (let i = 0; i < baseBoard.length; i++) {
-						const piece = baseBoard[i];
+					for (let i = 0; i < board.length; i++) {
+						const piece = board[i];
 						if (piece === '.') continue;
 						if (color === "white" && !isWhite(piece)) continue;
 						if (color === "black" && !isBlack(piece)) continue;
-						const moves = getMovesFromWithBoard(i, baseBoard);
+						const moves = getMovesFrom(i);
 						for (const target of moves) {
-							const candidateBoard = baseBoard.slice();
+							const candidateBoard = board.slice();
 							candidateBoard[target] = candidateBoard[i];
 							candidateBoard[i] = '.';
 							const opponentBest = getBestMoveForColor(candidateBoard, opponentColor);
 							const finalBoard = opponentBest ? opponentBest.board : candidateBoard;
-							const finalScores = calculateScoresWithBoard(finalBoard);
+							const finalScores = calculateScores(finalBoard);
 							const finalRanking =
 								color === "white"
 									? finalScores.white - finalScores.black
@@ -851,64 +839,51 @@
 				}
 
 				if (best) {
-					applyMove(best.from, best.to, { animate: true });
+					guessMoveEl.disabled = true;
+					animateMove(best.from, best.to, () => {
+						commitMove(best.from, best.to);
+						guessMoveEl.disabled = false;
+					});
 				}
-			}
-
-			function calculateScoresWithBoard(boardState) {
-				const original = board.slice();
-				for (let i = 0; i < 64; i++) board[i] = boardState[i];
-				const scores = calculateScores();
-				for (let i = 0; i < 64; i++) board[i] = original[i];
-				return scores;
 			}
 
 			// Distance helper:
 			// Compute the fewest moves a piece needs to reach a target square using getMovesFrom.
-			function getMoveDistance(from, to, maxMoves) {
+			function getMoveDistance(from, to, maxMoves, position = board) {
 				if (!Number.isFinite(from) || !Number.isFinite(to)) return -1;
 				if (from === to) return 0;
 				if (!Number.isFinite(maxMoves) || maxMoves < 0) return -1;
-				const startBoard = board.slice();
-				const queue = [{ pos: from, depth: 0, state: startBoard }];
+				const simulated = position.slice();
+				let square = from;
 				const visited = new Set();
-				visited.add(`${from}|${startBoard.join('')}`);
-
-				while (queue.length) {
-					const { pos, depth, state } = queue.shift();
-					if (depth >= maxMoves) continue;
-					const moves = getMovesFromWithBoard(pos, state);
-					const target = pickClosestMove(moves, to);
-					if (!Number.isFinite(target)) continue;
-					{
-						const next = state.slice();
-						const piece = next[pos];
-						next[pos] = '.';
-						next[target] = piece;
-						if (target === to) return depth + 1;
-						const key = `${target}|${next.join('')}`;
-						if (visited.has(key)) continue;
-						visited.add(key);
-						queue.push({ pos: target, depth: depth + 1, state: next });
-					}
+				for (let depth = 1; depth <= maxMoves; depth++) {
+					const key = square + "|" + simulated.join("");
+					if (visited.has(key)) break;
+					visited.add(key);
+					const target = pickClosestMove(getMovesFrom(square, simulated), to);
+					if (!Number.isFinite(target)) break;
+					if (target === to) return depth;
+					simulated[target] = simulated[square];
+					simulated[square] = '.';
+					square = target;
 				}
 				return -1;
 			}
 
 			// Proximity heuristic:
 			// Sum of move-distance from all pieces of one color (excluding own king) to the opponent king.
-			function getProximityScore(color, maxMoves) {
+			function getProximityScore(color, maxMoves, position = board) {
 				const isOwn = color === "white" ? isWhite : isBlack;
 				const opponentKing = color === "white" ? "K" : "k";
-				const kingIndex = board.findIndex((piece) => piece === opponentKing);
+				const kingIndex = position.findIndex((piece) => piece === opponentKing);
 				if (kingIndex === -1) return -1;
 				let sum = 0;
-				for (let i = 0; i < board.length; i++) {
-					const piece = board[i];
+				for (let i = 0; i < position.length; i++) {
+					const piece = position[i];
 					if (piece === '.') continue;
 					if (!isOwn(piece)) continue;
 					if (piece.toLowerCase() === 'k') continue;
-					const distance = getMoveDistance(i, kingIndex, maxMoves);
+					const distance = getMoveDistance(i, kingIndex, maxMoves, position);
 					sum += distance === -1 ? maxMoves + 1 : distance;
 				}
 				return sum;
@@ -916,14 +891,14 @@
 
 			// Distance heuristic:
 			// Sum of straight-line distance from all non-pawn pieces to the opponent king.
-			function getDistanceScore(color) {
+			function getDistanceScore(color, position = board) {
 				const isOwn = color === "white" ? isWhite : isBlack;
 				const opponentKing = color === "white" ? "K" : "k";
-				const kingIndex = board.findIndex((piece) => piece === opponentKing);
+				const kingIndex = position.findIndex((piece) => piece === opponentKing);
 				if (kingIndex === -1) return -1;
 				let sum = 0;
-				for (let i = 0; i < board.length; i++) {
-					const piece = board[i];
+				for (let i = 0; i < position.length; i++) {
+					const piece = position[i];
 					if (piece === '.') continue;
 					if (!isOwn(piece)) continue;
 					if (piece.toLowerCase() === 'p') continue;
@@ -957,108 +932,65 @@
 				return Math.hypot(dx, dy);
 			}
 
-			function getMovesFromWithBoard(index, boardState) {
-				const original = board.slice();
-				for (let i = 0; i < 64; i++) board[i] = boardState[i];
-				const moves = getMovesFrom(index);
-				for (let i = 0; i < 64; i++) board[i] = original[i];
-				return moves;
+			let selectedSquare = null;
+			let targets = [];
+
+			function selectSquare(index) {
+				for (const square of boardEl.querySelectorAll('[data-highlight]')) delete square.dataset.highlight;
+				boardEl.querySelector('[aria-pressed="true"]')?.removeAttribute('aria-pressed');
+				selectedSquare = null;
+				targets = [];
+				if (index === null || guessMoveEl.disabled) return;
+				const piece = board[index];
+				const color = isWhite(piece) ? 'white' : 'black';
+				const turn = getNextMoveColor();
+				if (piece === '.' || (turn && turn !== color)) return;
+				selectedSquare = index;
+				boardEl.querySelector('[data-index="' + index + '"]').setAttribute('aria-pressed', 'true');
+				targets = getMovesFrom(index);
+				for (const target of targets) {
+					boardEl.querySelector('[data-index="' + target + '"]').dataset.highlight = 'true';
+				}
 			}
 
-			function renderLabels() {
-				const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-				const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
-				fileLabelsTopEl.innerHTML = '';
-				fileLabelsBottomEl.innerHTML = '';
-				rankLabelsLeftEl.innerHTML = '';
-				rankLabelsRightEl.innerHTML = '';
-				files.forEach((file) => {
-					const top = document.createElement('span');
-					top.textContent = file;
-					fileLabelsTopEl.appendChild(top);
-					const bottom = document.createElement('span');
-					bottom.textContent = file;
-					fileLabelsBottomEl.appendChild(bottom);
-				});
-				ranks.forEach((rank) => {
-					const left = document.createElement('span');
-					left.textContent = rank;
-					rankLabelsLeftEl.appendChild(left);
-					const right = document.createElement('span');
-					right.textContent = rank;
-					rankLabelsRightEl.appendChild(right);
-				});
+			function moveSelection(to) {
+				if (guessMoveEl.disabled || !targets.includes(to)) return false;
+				const from = selectedSquare;
+				selectSquare(null);
+				commitMove(from, to);
+				boardEl.querySelector('[data-index="' + to + '"]').focus({ preventScroll: true });
+				return true;
 			}
 
-			let dragFrom = null;
-			let highlightTargets = [];
-
-			function clearHighlights() {
-				highlightTargets.forEach((idx) => {
-					const el = boardEl.querySelector(`[data-index="${idx}"]`);
-					if (el) el.dataset.highlight = 'false';
-				});
-				highlightTargets = [];
-			}
+			boardEl.addEventListener('click', (event) => {
+				const square = event.target.closest('button');
+				if (!square) return;
+				const index = Number(square.dataset.index);
+				if (!moveSelection(index)) selectSquare(index === selectedSquare ? null : index);
+			});
 
 			function onDragStart(event) {
-				const from = Number(event.target.dataset.index);
-				dragFrom = Number.isFinite(from) ? from : null;
-				if (!Number.isFinite(dragFrom)) return;
-				const nextColor = getNextMoveColor();
-				const piece = board[dragFrom];
-				if (
-					nextColor &&
-					((nextColor === "white" && !isWhite(piece)) ||
-						(nextColor === "black" && !isBlack(piece)))
-				) {
-					dragFrom = null;
-					event.preventDefault();
-					return;
-				}
-				clearHighlights();
-				const moves = getMovesFrom(dragFrom);
-				highlightTargets = moves.slice();
-				highlightTargets.forEach((idx) => {
-					const el = boardEl.querySelector(`[data-index="${idx}"]`);
-					if (el) el.dataset.highlight = 'true';
-				});
-				event.dataTransfer.setData('text/plain', String(dragFrom));
+				selectSquare(Number(event.target.dataset.index));
+				if (selectedSquare === null) event.preventDefault();
+				else event.dataTransfer.setData('text/plain', String(selectedSquare));
 			}
 
-			function onDragOver(event) {
+			boardEl.addEventListener('dragover', (event) => event.preventDefault());
+			boardEl.addEventListener('drop', (event) => {
 				event.preventDefault();
-			}
-
-			function onDrop(event) {
-				event.preventDefault();
-				clearHighlights();
-				const to = Number(event.currentTarget.dataset.index);
-				const from = dragFrom;
-				dragFrom = null;
-				if (!Number.isFinite(from) || !Number.isFinite(to)) return;
-				if (from === to) return;
-				const piece = board[from];
-				if (piece === '.') return;
-				const nextColor = getNextMoveColor();
-				if (
-					nextColor &&
-					((nextColor === "white" && !isWhite(piece)) ||
-						(nextColor === "black" && !isBlack(piece)))
-				) {
-					return;
+				const square = event.target.closest('button');
+				if (square && event.dataTransfer.getData('text/plain') === String(selectedSquare)) {
+					moveSelection(Number(square.dataset.index));
 				}
-				const moves = getMovesFrom(from);
-				if (!moves.includes(to)) return;
-				applyMove(from, to, { animate: false });
-			}
+				selectSquare(null);
+			});
+			boardEl.addEventListener('dragend', () => selectSquare(null));
 
 			setupInitialPosition();
 			scoresProximityMax.white = getProximityScore("white", PROXIMITY_MAX_MOVES);
 			scoresProximityMax.black = getProximityScore("black", PROXIMITY_MAX_MOVES);
 			scoresDistanceMax.white = getDistanceScore("white");
 			scoresDistanceMax.black = getDistanceScore("black");
-			renderLabels();
 			renderBoard();
 			guessMoveEl.addEventListener("click", computeMove);
 		</script>

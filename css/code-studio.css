@@ -1,0 +1,418 @@
+html:has(#studio-page) {
+	overflow: hidden;
+	scrollbar-gutter: auto;
+}
+
+#studio-page {
+	display: grid;
+	grid-template-rows: auto minmax(0, 1fr);
+	height: 100dvh;
+	min-height: 0;
+	overflow: hidden;
+}
+
+#code-studio {
+	--studio-bar-height: 2.75rem;
+	position: relative;
+	display: grid;
+	grid-template-columns: clamp(12rem, 22vw, 19.5rem) minmax(0, 1fr);
+	min-height: 0;
+	background: var(--color-surface-inset);
+}
+
+#studio-explorer {
+	display: grid;
+	grid-template-rows: auto minmax(0, 1fr);
+	min-width: 0;
+	min-height: 0;
+	border-inline-end: 1px solid var(--color-border);
+	background: var(--color-background-box);
+}
+
+#studio-explorer > header {
+	--page-heading-size: 1.6rem;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+	min-height: var(--studio-bar-height);
+	padding: 0.55rem 0.8rem;
+	border-bottom: 1px solid var(--color-line);
+	background: linear-gradient(105deg, var(--color-secondary), var(--color-background-box));
+}
+
+#studio-explorer > header a {
+	flex: none;
+	font: 650 0.7rem var(--font-mono);
+	text-decoration: none;
+}
+
+#studio-tree-scroll {
+	overflow: auto;
+	scrollbar-width: thin;
+	overscroll-behavior: contain;
+	padding: 0.5rem;
+}
+
+#studio-tree-empty,
+#studio-empty {
+	color: var(--color-muted);
+}
+
+#studio-tree-empty {
+	margin: 0.35rem;
+	font-size: 0.8rem;
+}
+
+#studio-tree,
+#studio-tree ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+#studio-tree ul {
+	margin-inline-start: 0.7rem;
+	padding-inline-start: 0.3rem;
+	border-inline-start: 1px solid var(--color-line);
+}
+
+#studio-tree li {
+	margin: 0;
+}
+
+#studio-tree details {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+}
+
+#studio-tree summary,
+[data-studio-file] {
+	display: flex;
+	align-items: center;
+	min-height: 1.85rem;
+	border-radius: var(--radius);
+}
+
+#studio-tree summary {
+	gap: 0.4rem;
+	padding-inline: 0.45rem;
+	font: 600 0.78rem/1.25 var(--font-mono);
+	cursor: pointer;
+	list-style: none;
+}
+
+#studio-tree li:has(> a[data-action="play"]) {
+	position: relative;
+}
+
+#studio-tree li:has(> a[data-action="play"]) > details > summary {
+	padding-inline-end: 2rem;
+}
+
+#studio-tree a[data-action="play"] {
+	position: absolute;
+	inset-block-start: 0;
+	inset-inline-end: 0;
+	display: grid;
+	place-items: center;
+	width: 1.85rem;
+	height: 1.85rem;
+	border-radius: var(--radius);
+	color: var(--color-primary);
+	outline-offset: -2px;
+}
+
+#studio-tree a[data-action="play"]:hover {
+	background: var(--color-surface-raised);
+	color: var(--color-highlight);
+}
+
+#studio-tree summary::-webkit-details-marker {
+	display: none;
+}
+
+#studio-tree summary::before {
+	flex: none;
+	width: 0.35rem;
+	height: 0.35rem;
+	border-right: 1px solid var(--color-muted);
+	border-bottom: 1px solid var(--color-muted);
+	transform: rotate(-45deg);
+	content: "";
+}
+
+#studio-tree details[open] > summary::before {
+	transform: translateY(-0.08rem) rotate(45deg);
+}
+
+#studio-tree img,
+#studio-context img,
+#studio-save img {
+	flex: none;
+	width: 0.95rem;
+	height: 0.95rem;
+}
+
+#studio-tree :is(summary, [data-studio-file]):hover {
+	background: var(--color-surface-raised);
+}
+
+[data-studio-file][data-selected] {
+	box-shadow: inset 2px 0 var(--color-primary);
+	background: var(--color-accent-soft);
+}
+
+#studio-page button:is(.studio-filename, .studio-file-actions, .studio-tab-label, .studio-tab-close, #studio-toggle, #studio-save, [role="menuitem"]) {
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	color: inherit;
+}
+
+.studio-filename {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	gap: 0.4rem;
+	min-width: 0;
+	min-height: 1.85rem;
+	padding: 0.25rem 0.35rem 0.25rem 1.2rem;
+	font: 0.78rem/1.25 var(--font-mono);
+	text-align: start;
+}
+
+#studio-tree :is(summary, button) span,
+.studio-tab-label span,
+#studio-path {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.studio-file-actions {
+	display: none;
+	flex: none;
+	align-self: stretch;
+	padding: 0 0.4rem;
+}
+
+#studio-workbench {
+	display: grid;
+	grid-template-rows: auto minmax(0, 1fr) auto;
+	min-width: 0;
+	min-height: 0;
+}
+
+#studio-tabbar {
+	z-index: 2;
+	display: flex;
+	align-items: stretch;
+	min-width: 0;
+	height: var(--studio-bar-height);
+	border-bottom: 1px solid var(--color-border);
+	background: var(--color-background-box);
+}
+
+#studio-tabs {
+	display: flex;
+	flex: 1;
+	min-width: 0;
+	overflow: auto hidden;
+	scrollbar-width: thin;
+}
+
+.studio-tab {
+	display: flex;
+	flex: none;
+	align-items: stretch;
+	max-width: 15rem;
+	border-inline-end: 1px solid var(--color-line);
+	color: var(--color-muted);
+}
+
+.studio-tab[data-active] {
+	box-shadow: inset 0 2px var(--color-primary);
+	background: var(--color-surface-inset);
+	color: var(--color-foreground);
+}
+
+.studio-tab-label {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+	min-width: 0;
+	padding: 0 0.7rem;
+	font: 0.78rem var(--font-mono);
+}
+
+.studio-tab[data-dirty] .studio-tab-label::before,
+#studio-save-status::before {
+	flex: none;
+	width: 0.38rem;
+	height: 0.38rem;
+	border-radius: 50%;
+	background: currentColor;
+	content: "";
+}
+
+.studio-tab[data-dirty] .studio-tab-label::before {
+	color: var(--color-amber);
+}
+
+.studio-tab-close {
+	padding: 0 0.45rem;
+	font-size: 1rem;
+}
+
+#studio-page :is(button, summary):focus-visible {
+	outline-offset: -2px;
+}
+
+#studio-page :is(.studio-tab-close, #studio-toggle, #studio-save, .studio-file-actions):hover {
+	background: var(--color-surface-raised);
+	color: var(--color-primary);
+}
+
+#studio-save-group:not([hidden]) {
+	display: flex;
+	flex: none;
+	align-items: center;
+	gap: 0.3rem;
+	padding-inline: 0.65rem 0.35rem;
+	border-inline-start: 1px solid var(--color-line);
+}
+
+#studio-save-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	color: var(--color-primary);
+	font: 700 0.7rem var(--font-mono);
+	white-space: nowrap;
+}
+
+#studio-save-status[data-state="dirty"] { color: var(--color-amber); }
+#studio-save-status[data-state="saving"] { color: var(--color-signal); }
+#studio-save-status[data-state="error"] { color: var(--color-accent-detail); }
+
+#studio-save {
+	display: grid;
+	place-items: center;
+	min-width: 1.9rem;
+	min-height: 1.9rem;
+	padding: 0.25rem;
+}
+
+#studio-toggle {
+	display: none;
+	padding: 0 0.6rem;
+	border-inline-end: 1px solid var(--color-line);
+	font: 700 0.7rem var(--font-mono);
+}
+
+#studio-panel:not([hidden]) {
+	display: grid;
+	grid-template-rows: auto minmax(0, 1fr);
+	min-height: 0;
+}
+
+#studio-filebar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.7rem;
+	padding: 0.38rem 0.8rem;
+	border-bottom: 1px solid var(--color-line);
+	color: var(--color-muted);
+	font: 0.72rem/1.6 var(--font-mono);
+}
+
+#studio-language {
+	flex: none;
+	color: var(--color-signal);
+}
+
+#studio-editor {
+	min-width: 0;
+	min-height: 0;
+}
+
+#studio-empty:not([hidden]) {
+	display: grid;
+	place-content: center;
+	justify-items: center;
+	gap: 1rem;
+	padding: 1rem;
+	text-align: center;
+}
+
+#studio-empty img {
+	width: 3.25rem;
+	opacity: 0.7;
+}
+
+#studio-empty p,
+#studio-message {
+	margin: 0;
+}
+
+#studio-message {
+	padding: 0.45rem 0.8rem;
+	border-top: 1px solid var(--color-line);
+	background: var(--color-background-box);
+	color: var(--color-signal);
+	font-size: 0.8rem;
+	overflow-wrap: anywhere;
+}
+
+#studio-message[data-error] {
+	color: var(--color-accent-detail);
+}
+
+#studio-context:not([hidden]) {
+	position: fixed;
+	z-index: 10;
+	display: grid;
+	min-width: 9.5rem;
+	padding: 0.25rem;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius);
+	background: var(--color-background-box);
+	box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 55%);
+}
+
+#studio-context button {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.4rem 0.65rem;
+	text-align: start;
+}
+
+#studio-context button:is(:hover, :focus-visible) {
+	background: var(--color-surface-raised);
+}
+
+@media (pointer: coarse) {
+	.studio-file-actions { display: block; }
+}
+
+@media (max-width: 42rem) {
+	#code-studio { grid-template-columns: minmax(0, 1fr); }
+	#studio-toggle { display: block; }
+
+	#studio-explorer {
+		position: absolute;
+		inset: var(--studio-bar-height) auto 0 0;
+		z-index: 3;
+		width: min(17rem, 86vw);
+		box-shadow: 0.6rem 0 2rem rgb(0 0 0 / 40%);
+	}
+
+	#code-studio[data-explorer-open="false"] #studio-explorer {
+		display: none;
+	}
+}

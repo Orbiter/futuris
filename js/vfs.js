@@ -29,7 +29,7 @@
  *
  * The VFS includes Bash-like commands for manipulating the virtual file system.
  *
- * The VFS is exposed as a global object (window.vfs) for easy access from other parts of the application.
+ * The VFS is exposed as a global object in pages and workers.
  */
 
 // Open a connection to the database
@@ -37,7 +37,7 @@ const openRequest = indexedDB.open('vfs', 1);
 
 let vfsReadyResolve;
 let vfsReadyReject;
-window.vfsReady = new Promise((resolve, reject) => {
+globalThis.vfsReady = new Promise((resolve, reject) => {
   vfsReadyResolve = resolve;
   vfsReadyReject = reject;
 });
@@ -162,6 +162,271 @@ const applyUnifiedDiff = (originalText, diffText) => {
   return patched;
 };
 
+// Run filesystem operations against a single committed view of the shared VFS.
+function vfsTransaction(database, mode, operation) {
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction('keyValueStore', mode);
+    let result;
+    let failure;
+    transaction.oncomplete = () => resolve(result);
+    transaction.onabort = () => reject(failure || transaction.error);
+    operation(transaction.objectStore('keyValueStore')).then((value) => {
+      result = value;
+    }).catch((error) => {
+      failure = error;
+      try {
+        transaction.abort();
+      } catch {
+        reject(error);
+      }
+    });
+  });
+}
+
+function vfsRequest(request) {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function createVfsFileSystem(database, directoryRange) {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
+  const read = (operation) => vfsTransaction(database, 'readonly', operation);
+  const write = (operation) => vfsTransaction(database, 'readwrite', operation);
+
+  function fail(code, path) {
+    throw Object.assign(new Error(`${code}: ${path}`), { code });
+  }
+
+  function resolvePath(base, path) {
+    if (path.includes('\0')) fail('EINVAL', path);
+    const parts = path.startsWith('/') ? [] : base.split('/').filter(Boolean);
+    for (const part of path.split('/')) {
+      if (part === '..') parts.pop();
+      else if (part && part !== '.') parts.push(part);
+    }
+    return '/' + parts.join('/');
+  }
+
+  function directoryKey(path) {
+    return path === '/' ? '/' : path + '/';
+  }
+
+  function parent(path) {
+    return path.slice(0, path.lastIndexOf('/')) || '/';
+  }
+
+  function bytes(value) {
+    if (value instanceof ArrayBuffer) return new Uint8Array(value);
+    if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+    return encoder.encode(value ?? '');
+  }
+
+  function fileValue(data) {
+    try {
+      const text = decoder.decode(data);
+      if (!text.includes('\0')) return text;
+    } catch (error) {
+      if (!(error instanceof TypeError)) throw error;
+    }
+    return data;
+  }
+
+  function append(previous, value) {
+    if (typeof previous === 'string' && typeof value === 'string') return previous + value;
+    if (previous instanceof Blob || value instanceof Blob) return new Blob([previous, value]);
+    const initial = bytes(previous);
+    const added = bytes(value);
+    const joined = new Uint8Array(initial.length + added.length);
+    joined.set(initial);
+    joined.set(added, initial.length);
+    return fileValue(joined);
+  }
+
+  async function lookup(store, path) {
+    if (path !== '/') {
+      const file = await vfsRequest(store.get(path));
+      if (file) return file;
+    }
+    const key = directoryKey(path);
+    const directory = await vfsRequest(store.get(key));
+    if (directory) return directory;
+
+    // Older VFS entries may have descendants without an explicit directory record.
+    const firstChild = await vfsRequest(store.getKey(directoryRange(key)));
+    return path === '/' || firstChild !== undefined ? { id: key, value: '' } : undefined;
+  }
+
+  async function requireEntry(store, path) {
+    const record = await lookup(store, path);
+    if (!record) fail('ENOENT', path);
+    return record;
+  }
+
+  async function requireDirectory(store, path) {
+    const record = await requireEntry(store, path);
+    if (!record.id.endsWith('/')) fail('ENOTDIR', path);
+    return record;
+  }
+
+  async function requireFile(store, path) {
+    const record = await requireEntry(store, path);
+    if (record.id.endsWith('/')) fail('EISDIR', path);
+    return record;
+  }
+
+  async function verifyDestination(store, path, isDirectory) {
+    const entry = await lookup(store, path);
+    if (entry && entry.id.endsWith('/') !== isDirectory) {
+      fail(isDirectory ? 'ENOTDIR' : 'EISDIR', path);
+    }
+    return entry;
+  }
+
+  async function transfer(src, dest, { move = false, recursive = false, overwrite = true } = {}) {
+    const source = resolvePath('/', src);
+    const target = resolvePath('/', dest);
+    return write(async (store) => {
+      const original = await requireEntry(store, source);
+      const isDirectory = original.id.endsWith('/');
+      if (source === target && move) return;
+      if (source === target || (isDirectory && target.startsWith(directoryKey(source)))) {
+        fail('EINVAL', target);
+      }
+      if (isDirectory && !recursive) fail('EISDIR', source);
+      if (target === '/') fail('EBUSY', target);
+      await requireDirectory(store, parent(target));
+      const existing = await verifyDestination(store, target, isDirectory);
+      if (existing && !overwrite) fail('EEXIST', target);
+      if (move && existing && isDirectory) {
+        const range = directoryRange(existing.id, true);
+        if (await vfsRequest(store.getKey(range)) !== undefined) fail('ENOTEMPTY', target);
+      }
+
+      const targetKey = isDirectory ? directoryKey(target) : target;
+      await vfsRequest(store.put({ ...original, id: targetKey }));
+      if (isDirectory) {
+        const records = await vfsRequest(store.getAll(directoryRange(original.id)));
+        for (const record of records) {
+          if (record.id === original.id) continue;
+          const id = targetKey + record.id.slice(original.id.length);
+          if (existing) {
+            const directory = id.endsWith('/');
+            await verifyDestination(store, directory ? id.slice(0, -1) : id, directory);
+          }
+          await vfsRequest(store.put({ ...record, id }));
+        }
+      }
+      if (move) {
+        await vfsRequest(store.delete(isDirectory ? directoryRange(original.id) : original.id));
+      }
+    });
+  }
+
+  return {
+    resolvePath,
+    fileValue,
+
+    stat(path) {
+      return read(async (store) => {
+        const record = await requireEntry(store, resolvePath('/', path));
+        const isDirectory = record.id.endsWith('/');
+        return {
+          isDirectory,
+          size: isDirectory ? 0 : record.value instanceof Blob ? record.value.size : bytes(record.value).byteLength,
+          mode: record.mode ?? (isDirectory ? 0o755 : 0o644),
+          mtime: new Date(record.mtime ?? 0)
+        };
+      });
+    },
+
+    async readBytes(path) {
+      const { value } = await read((store) => requireFile(store, resolvePath('/', path)));
+      return value instanceof Blob ? new Uint8Array(await value.arrayBuffer()) : bytes(value);
+    },
+
+    write(path, data, { append: appendData = false, exclusive = false, mode = 0o644 } = {}) {
+      const key = resolvePath('/', path);
+      const value = typeof data === 'string' ? data : fileValue(data);
+      return write(async (store) => {
+        await requireDirectory(store, parent(key));
+        const existing = await lookup(store, key);
+        if (existing && exclusive) fail('EEXIST', key);
+        if (existing?.id.endsWith('/')) fail('EISDIR', key);
+        const contents = appendData && existing ? append(existing.value, value) : value;
+        await vfsRequest(store.put({ id: key, value: contents, mode: existing?.mode ?? mode, mtime: Date.now() }));
+      });
+    },
+
+    mkdir(path, { recursive = false, mode = 0o755 } = {}) {
+      const key = resolvePath('/', path);
+      return write(async (store) => {
+        if (key === '/') {
+          if (!recursive) fail('EEXIST', key);
+          return;
+        }
+        const parts = key.slice(1).split('/');
+        const directories = recursive
+          ? parts.map((_, index) => '/' + parts.slice(0, index + 1).join('/'))
+          : [key];
+        if (!recursive) await requireDirectory(store, parent(key));
+        for (const directory of directories) {
+          const existing = await lookup(store, directory);
+          if (existing) {
+            if (!recursive) fail('EEXIST', directory);
+            if (!existing.id.endsWith('/')) fail('ENOTDIR', directory);
+          } else {
+            await vfsRequest(store.add({ id: directoryKey(directory), value: '', mode, mtime: Date.now() }));
+          }
+        }
+      });
+    },
+
+    readdir(path) {
+      return read(async (store) => {
+        const { id } = await requireDirectory(store, resolvePath('/', path));
+        const keys = await vfsRequest(store.getAllKeys(directoryRange(id)));
+        return [...new Set(keys.filter((key) => key !== id).map((key) => key.slice(id.length).split('/')[0]))];
+      });
+    },
+
+    rm(path, { recursive = false, force = false } = {}) {
+      const key = resolvePath('/', path);
+      return write(async (store) => {
+        if (key === '/') fail('EBUSY', key);
+        const record = await lookup(store, key);
+        if (!record) {
+          if (!force) fail('ENOENT', key);
+          return;
+        }
+        const isDirectory = record.id.endsWith('/');
+        if (isDirectory && !recursive) {
+          const range = directoryRange(record.id, true);
+          if (await vfsRequest(store.getKey(range)) !== undefined) fail('ENOTEMPTY', key);
+        }
+        await vfsRequest(store.delete(isDirectory ? directoryRange(record.id) : record.id));
+      });
+    },
+
+    cp(src, dest, options) {
+      return transfer(src, dest, options);
+    },
+
+    mv(src, dest, { overwrite = true } = {}) {
+      return transfer(src, dest, { move: true, recursive: true, overwrite });
+    },
+
+    setMetadata(path, { mode, mtime }) {
+      return write(async (store) => {
+        const record = await requireEntry(store, resolvePath('/', path));
+        await vfsRequest(store.put({ ...record, mode: mode ?? record.mode, mtime: mtime ?? record.mtime }));
+      });
+    }
+  };
+}
+
 // Handle the database upgrade event
 openRequest.onupgradeneeded = function (event) {
   const db = event.target.result;
@@ -175,24 +440,20 @@ openRequest.onupgradeneeded = function (event) {
 openRequest.onsuccess = function (event) {
   db = event.target.result;
 
+  // The next character after '/' bounds the range to keys with this directory prefix.
+  const directoryRange = (path, descendantsOnly = false) =>
+    IDBKeyRange.bound(path, `${path.slice(0, -1)}0`, descendantsOnly, true);
+
   // Define the vfs object with methods to interact with the database
   const vfs = {
-    put: function (key, value) {
-      return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['keyValueStore'], 'readwrite');
-        const store = transaction.objectStore('keyValueStore');
-        const putRequest = store.put({ id: key, value });
-
-        // Handle the successful storage of a key-value pair
-        putRequest.onsuccess = function (event) {
-          console.log('Key-value pair stored successfully.');
-          resolve();
-        };
-        // Handle errors
-        putRequest.onerror = function (event) {
-          console.error('Error storing key-value pair:', event.target.errorCode);
-          reject(event.target.errorCode);
-        };
+    fileSystem: createVfsFileSystem(db, directoryRange),
+    put: function (key, value, { expectedValue } = {}) {
+      return vfsTransaction(db, 'readwrite', async (store) => {
+        const previous = await vfsRequest(store.get(key));
+        if (expectedValue !== undefined && previous?.value !== expectedValue) {
+          throw new Error('The file changed or was removed while you were editing.');
+        }
+        await vfsRequest(store.put({ ...previous, id: key, value, mtime: Date.now() }));
       });
     },
     getasync: function (key) {
@@ -216,18 +477,6 @@ openRequest.onsuccess = function (event) {
     get: async function (key) {
       return await this.getasync(key);
     },
-    rm: function (key) {
-      const transaction = db.transaction(['keyValueStore'], 'readwrite');
-      const store = transaction.objectStore('keyValueStore');
-      const deleteRequest = store.delete(key);
-      deleteRequest.onsuccess = function (event) {
-        console.log('Entry removed successfully.');
-      };
-      deleteRequest.onerror = function (event) {
-        console.error('Error removing entry:', event.target.errorCode);
-      };
-    },
-
     // the following methods all consider that keys are paths and have their proper shape:
     // - a path must have a leading slash
     // - a path ending with a slash is considered a directory
@@ -239,8 +488,6 @@ openRequest.onsuccess = function (event) {
       if (!path.startsWith('/') || path === '') {
         throw new Error('Invalid path');
       }
-      const dirPath = path.substring(0, path.lastIndexOf('/')) + '/';
-      const fileName = path.substring(path.lastIndexOf('/') + 1);
       const transaction = db.transaction(['keyValueStore'], 'readwrite');
       const store = transaction.objectStore('keyValueStore');
       const putRequest = store.put({ id: path, value: '' });
@@ -252,69 +499,25 @@ openRequest.onsuccess = function (event) {
       };
     },
     rm: function (path) {
-      // Remove a file or directory at the specified path.
-      if (!path.startsWith('/') || path === '') {
-        throw new Error('Invalid path');
-      }
-      const transaction = db.transaction(['keyValueStore'], 'readwrite');
-      const store = transaction.objectStore('keyValueStore');
-      const deleteRequest = store.delete(path);
-      deleteRequest.onsuccess = function (event) {
-        console.log(`Entry removed at ${path}`);
-      };
-      deleteRequest.onerror = function (event) {
-        console.error(`Error removing entry at ${path}: ${event.target.errorCode}`);
-      };
+      if (!path.startsWith('/')) throw new Error('Invalid path');
+      return vfsTransaction(db, 'readwrite', async (store) => {
+        await vfsRequest(store.delete(path));
+      });
     },
     cp: function (srcPath, destPath) {
-      // Copy a file or directory from one path to another.
-      if (!srcPath.startsWith('/') || !destPath.startsWith('/') || srcPath === '' || destPath === '') {
-        throw new Error('Invalid path');
-      }
-      const transaction = db.transaction(['keyValueStore'], 'readwrite');
-      const store = transaction.objectStore('keyValueStore');
-      const getRequest = store.get(srcPath);
-      getRequest.onsuccess = function (event) {
-        const value = event.target.result ? event.target.result.value : {};
-        const putRequest = store.put({ id: destPath, value });
-        putRequest.onsuccess = function (event) {
-          console.log(`Entry copied from ${srcPath} to ${destPath}`);
-        };
-        putRequest.onerror = function (event) {
-          console.error(`Error copying entry from ${srcPath} to ${destPath}: ${event.target.errorCode}`);
-        };
-      };
-      getRequest.onerror = function (event) {
-        console.error(`Error getting entry at ${srcPath}: ${event.target.errorCode}`);
-      };
+      if (!srcPath.startsWith('/') || !destPath.startsWith('/')) throw new Error('Invalid path');
+      return vfsTransaction(db, 'readwrite', async (store) => {
+        const source = await vfsRequest(store.get(srcPath));
+        await vfsRequest(store.put({ ...(source || { value: {} }), id: destPath }));
+      });
     },
     mv: function (srcPath, destPath) {
-      // Move or rename a file or directory from one path to another.
-      if (!srcPath.startsWith('/') || !destPath.startsWith('/') || srcPath === '' || destPath === '') {
-        throw new Error('Invalid path');
-      }
-      const transaction = db.transaction(['keyValueStore'], 'readwrite');
-      const store = transaction.objectStore('keyValueStore');
-      const getRequest = store.get(srcPath);
-      getRequest.onsuccess = function (event) {
-        const value = event.target.result ? event.target.result.value : {};
-        const deleteRequest = store.delete(srcPath);
-        deleteRequest.onsuccess = function (event) {
-          const putRequest = store.put({ id: destPath, value });
-          putRequest.onsuccess = function (event) {
-            console.log(`Entry moved from ${srcPath} to ${destPath}`);
-          };
-          putRequest.onerror = function (event) {
-            console.error(`Error moving entry from ${srcPath} to ${destPath}: ${event.target.errorCode}`);
-          };
-        };
-        deleteRequest.onerror = function (event) {
-          console.error(`Error deleting entry at ${srcPath}: ${event.target.errorCode}`);
-        };
-      };
-      getRequest.onerror = function (event) {
-        console.error(`Error getting entry at ${srcPath}: ${event.target.errorCode}`);
-      };
+      if (!srcPath.startsWith('/') || !destPath.startsWith('/')) throw new Error('Invalid path');
+      return vfsTransaction(db, 'readwrite', async (store) => {
+        const source = await vfsRequest(store.get(srcPath));
+        await vfsRequest(store.delete(srcPath));
+        await vfsRequest(store.put({ ...(source || { value: {} }), id: destPath }));
+      });
     },
     applyDiff: async function (path, diffText) {
       if (!path.startsWith('/') || path === '' || path.endsWith('/')) {
@@ -323,37 +526,21 @@ openRequest.onsuccess = function (event) {
       if (typeof diffText !== 'string') {
         throw new Error('Invalid diff');
       }
-      const current = await this.getasync(path);
-      const next = applyUnifiedDiff(String(current || ''), diffText);
-      await this.put(path, next);
-      return next;
+      return vfsTransaction(db, 'readwrite', async (store) => {
+        const record = await vfsRequest(store.get(path));
+        if (!record) throw 'Key not found';
+        const next = applyUnifiedDiff(String(record.value || ''), diffText);
+        await vfsRequest(store.put({ ...record, value: next, mtime: Date.now() }));
+        return next;
+      });
     },
     ls: function (path) {
-      // List the contents of a directory at the specified path.
       if (!path.endsWith('/')) {
         throw new Error('Invalid directory path');
       }
-      const transaction = db.transaction(['keyValueStore'], 'readonly');
-      const store = transaction.objectStore('keyValueStore');
-      const cursorRange = path === '/' ? IDBKeyRange.lowerBound(path) : IDBKeyRange.bound(path, path.substring(0, path.length - 1) + '\uffff', false, true);
-    
-      return new Promise((resolve, reject) => {
-        const cursorRequest = store.openCursor(cursorRange);
-        const contents = [];
-        cursorRequest.onsuccess = function (event) {
-          const cursor = event.target.result;
-          if (cursor) {
-            if (cursor.key.startsWith(path)) {
-              contents.push(cursor.key.substring(path.length));
-            }
-            cursor.continue();
-          } else {
-            resolve(contents);
-          }
-        };
-        cursorRequest.onerror = function (event) {
-          reject(`Error listing directory at ${path}: ${event.target.errorCode}`);
-        };
+      return vfsTransaction(db, 'readonly', async (store) => {
+        const keys = await vfsRequest(store.getAllKeys(directoryRange(path)));
+        return keys.map((key) => key.slice(path.length));
       });
     },
     normalizeDirPath: function (path) {
@@ -391,22 +578,54 @@ openRequest.onsuccess = function (event) {
       await this.put(dirPath, '');
       return dirPath;
     },
+    readFolderTree: function (path) {
+      const folder = this.normalizeDirPath(path);
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction('keyValueStore', 'readonly');
+        const request = transaction.objectStore('keyValueStore').getAll(directoryRange(folder));
+        request.onsuccess = () => resolve(request.result
+          .filter(({ id }) => id !== folder)
+          .map(({ id, value }) => ({ path: id.slice(folder.length), value })));
+        request.onerror = () => reject(request.error);
+      });
+    },
+    addFolderTree: function (name, entries) {
+      // Pick a free root name and write the complete tree in the same transaction.
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction('keyValueStore', 'readwrite');
+        const store = transaction.objectStore('keyValueStore');
+        const request = store.getAllKeys(directoryRange('/'));
+        let folder;
+        let writeError;
+
+        transaction.oncomplete = () => resolve(folder);
+        transaction.onabort = () => reject(writeError || transaction.error || new Error('Unable to save the folder.'));
+
+        request.onsuccess = () => {
+          const rootNames = new Set(request.result.map((key) => key.split('/')[1]));
+          let availableName = name;
+          for (let number = 2; rootNames.has(availableName); number += 1) {
+            availableName = `${name} (${number})`;
+          }
+          folder = `/${availableName}/`;
+          try {
+            store.add({ id: folder, value: '' });
+            for (const { path, value } of entries) {
+              store.add({ id: folder + path, value });
+            }
+          } catch (error) {
+            writeError = error;
+            transaction.abort();
+          }
+        };
+      });
+    },
     deleteTree: async function (path) {
       if (!path || !path.startsWith('/')) {
         throw new Error('Invalid path');
       }
-      if (path.endsWith('/')) {
-        const contents = await this.ls(path);
-        for (const entry of contents) {
-          if (!entry) continue;
-          await this.rm(`${path}${entry}`);
-        }
-        if (path !== '/') {
-          await this.rm(path);
-        }
-        return;
-      }
-      await this.rm(path);
+      const range = path.endsWith('/') ? directoryRange(path, path === '/') : path;
+      await vfsTransaction(db, 'readwrite', (store) => vfsRequest(store.delete(range)));
     },
     moveTree: async function (srcPath, destDir) {
       if (!srcPath || !srcPath.startsWith('/')) {
@@ -427,19 +646,24 @@ openRequest.onsuccess = function (event) {
         throw new Error('Cannot move a folder into itself.');
       }
 
-      if (targetDir !== '/') {
-        await this.mkdir(targetDir);
-      }
-
-      if (isFolder) {
-        const contents = await this.ls(srcPath);
-        for (const entry of contents) {
-          if (!entry) continue;
-          await this.mv(`${srcPath}${entry}`, `${destPath}${entry}`);
+      await vfsTransaction(db, 'readwrite', async (store) => {
+        const source = isFolder ? directoryRange(srcPath) : srcPath;
+        const keys = await vfsRequest(store.getAllKeys(source));
+        if (!keys.length) throw new Error('Source entry no longer exists.');
+        if (isFolder && srcPath.startsWith(destPath)) {
+          // Moving /a/a/ into / can reuse source keys. Move the shorter keys out first.
+          keys.sort((first, second) => first.length - second.length);
         }
-      }
-
-      await this.mv(srcPath, destPath);
+        if (targetDir !== '/' && !await vfsRequest(store.getKey(targetDir))) {
+          await vfsRequest(store.put({ id: targetDir, value: '' }));
+        }
+        for (const key of keys) {
+          const record = await vfsRequest(store.get(key));
+          record.id = destPath + key.slice(srcPath.length);
+          await vfsRequest(store.put(record));
+          await vfsRequest(store.delete(key));
+        }
+      });
       return destPath;
     },
     cat: function (path) {
@@ -537,8 +761,7 @@ openRequest.onsuccess = function (event) {
     }
   };
 
-  // Attach the vfs object to the window object
-  window.vfs = vfs;
+  globalThis.vfs = vfs;
   if (vfsReadyResolve) vfsReadyResolve(vfs);
 };
 

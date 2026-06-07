@@ -1,0 +1,231 @@
+--- a/lib/readline.js
++++ b/lib/readline.js
+@@ -10,5 +10,5 @@
+     constructor() {
+         this.highlighter = new highlight_1.IdentityHighlighter();
+-        this.history = new history_1.History(50);
++        this.history = new history_1.History(Infinity);
+         this.printingPrompt = false;
+         this.pendingKeys = [];
+@@ -374,5 +374,30 @@
+         return true;
+     }
++    setCompletionHandler(handler) {
++        this.completionHandler = handler;
++    }
++    async complete() {
++        if (!this.completionHandler) return;
++        const read = this.activeRead;
++        const state = this.state;
++        const line = state.buffer();
++        const cursor = state.line.pos;
++        let suffix;
++        try {
++            suffix = await this.completionHandler(line, cursor);
++        }
++        catch {
++            return;
++        }
++        // Ignore a late result after editing, moving the cursor, or leaving the prompt.
++        if (suffix && this.activeRead === read && this.state === state && !this.printingPrompt &&
++            state.buffer() === line && state.line.pos === cursor) {
++            state.editInsert(suffix);
++        }
++    }
+     handleKeyEvent(event) {
++        if (event.key === "Tab" && event.shiftKey && this.completionHandler) {
++            return false;
++        }
+         if (event.key === "Enter" && event.shiftKey) {
+             if (event.type === "keydown") {
+@@ -387,5 +412,18 @@
+     }
+     readData(data) {
++        // Bracketed paste is always a single edit, even if the clipboard only
++        // contains a newline. Terminal control bytes are not command text.
++        if (data.startsWith("\x1b[200~") && data.endsWith("\x1b[201~")) {
++            const text = data.slice(6, -6).replace(/\r\n?/g, "\n")
++                .replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, "");
++            if (text) {
++                this.readKey({ inputType: keymap_1.InputType.Text, data: [text] });
++            }
++            return;
++        }
+         const input = (0, keymap_1.parseInput)(data);
++        if (input.length === 0) {
++            return;
++        }
+         if (input.length > 1 ||
+             (input[0].inputType === keymap_1.InputType.Text && input[0].data.length > 1)) {
+@@ -399,4 +437,7 @@
+             if (it.inputType === keymap_1.InputType.Enter) {
+                 return { inputType: keymap_1.InputType.Text, data: ["\n"] };
++            }
++            if (it.inputType === keymap_1.InputType.Tab) {
++                return { inputType: keymap_1.InputType.Text, data: ["\t"] };
+             }
+             return it;
+@@ -440,4 +481,7 @@
+         }
+         switch (input.inputType) {
++            case keymap_1.InputType.Tab:
++                void this.complete();
++                break;
+             case keymap_1.InputType.Text:
+                 this.state.editInsert(input.data.join(""));
+@@ -454,5 +498,11 @@
+                     this.state.refreshUnhighlighted();
+                     (_b = this.term) === null || _b === void 0 ? void 0 : _b.write("\r\n");
+-                    this.history.append(this.state.buffer());
++                    const command = this.state.buffer();
++                    if (command.trim()) {
++                        this.history.append(command);
++                    }
++                    else {
++                        this.history.resetCursor();
++                    }
+                     const read = this.activeRead;
+                     this.finishRead(read, () => read.resolve(this.state.buffer()));
+@@ -463,4 +513,5 @@
+                 break;
+             case keymap_1.InputType.CtrlC: {
++                this.history.resetCursor();
+                 this.state.moveCursorToEnd();
+                 (_c = this.term) === null || _c === void 0 ? void 0 : _c.write("^C\r\n");
+--- a/lib/state.js
++++ b/lib/state.js
+@@ -40,9 +40,5 @@
+         this.line = new line_1.LineBuffer();
+         this.highlighting = false;
+-        // Bash-style edit-mode lockout: any successful cursor movement or edit
+-        // sets editing=true; a buffer replacement via update() (history nav or
+-        // Ctrl-U) resets it. Up/Down only navigate history while editing=false;
+-        // once editing, Up/Down move within the buffer and no-op at boundaries.
+-        this.editing = false;
++        this.historyDraft = "";
+         this.prompt = restorePrompt ? "" : prompt;
+         this.tty = tty;
+@@ -94,5 +90,4 @@
+     }
+     editInsert(text) {
+-        this.editing = true;
+         const push = this.line.insert(text);
+         const multiline = text.includes("\n");
+@@ -116,10 +111,8 @@
+     update(text) {
+         this.line.update(text, text.length);
+-        this.editing = false;
+         this.refresh();
+     }
+     editBackspace(n) {
+         if (this.line.backspace(n)) {
+-            this.editing = true;
+             this.refresh();
+         }
+@@ -127,5 +120,4 @@
+     editDelete(n) {
+         if (this.line.delete(n)) {
+-            this.editing = true;
+             this.refresh();
+         }
+@@ -133,5 +125,4 @@
+     editDeleteEndOfLine() {
+         if (this.line.deleteEndOfLine()) {
+-            this.editing = true;
+             this.refresh();
+         }
+@@ -179,5 +170,4 @@
+     moveCursorBack(n) {
+         if (this.line.moveBack(n)) {
+-            this.editing = true;
+             this.moveCursor();
+         }
+@@ -185,29 +175,25 @@
+     moveCursorForward(n) {
+         if (this.line.moveForward(n)) {
+-            this.editing = true;
+             this.moveCursor();
+         }
+     }
+     moveCursorUp(n) {
+-        if (this.editing) {
+-            if (this.line.moveLineUp(n, this.promptSize.col)) {
+-                this.moveCursor();
+-            }
+-            return;
+-        }
+-        this.previousHistory();
++        if (this.line.moveLineUp(n, this.promptSize.col)) {
++            this.moveCursor();
++        }
++        else {
++            this.previousHistory();
++        }
+     }
+     moveCursorDown(n) {
+-        if (this.editing) {
+-            if (this.line.moveLineDown(n, this.promptSize.col)) {
+-                this.moveCursor();
+-            }
+-            return;
+-        }
+-        this.nextHistory();
++        if (this.line.moveLineDown(n, this.promptSize.col)) {
++            this.moveCursor();
++        }
++        else {
++            this.nextHistory();
++        }
+     }
+     moveCursorHome() {
+         if (this.line.moveHome()) {
+-            this.editing = true;
+             this.moveCursor();
+         }
+@@ -215,5 +201,4 @@
+     moveCursorEnd() {
+         if (this.line.moveEnd()) {
+-            this.editing = true;
+             this.moveCursor();
+         }
+@@ -227,6 +212,6 @@
+     }
+     previousHistory() {
+-        if (this.history.cursor === -1 && this.line.length() > 0) {
+-            return;
++        if (this.history.cursor === -1) {
++            this.historyDraft = this.buffer();
+         }
+         const prev = this.history.prev();
+@@ -244,5 +229,5 @@
+         }
+         else {
+-            this.update("");
++            this.update(this.historyDraft);
+         }
+     }
+--- a/lib/line.js
++++ b/lib/line.js
+@@ -132,5 +132,5 @@
+             : visualCol;
+         const slice = [...this.buf.slice(destStart, destEnd)].slice(0, destBufCol);
+-        let gIdx = off;
++        let gIdx = destStart;
+         if (slice.length > 0) {
+             gIdx = slice.map((c) => c.length).reduce((acc, m) => acc + m, 0);
+--- a/lib/keymap.js
++++ b/lib/keymap.js
+@@ -28,4 +28,5 @@
+     InputType[InputType["UnsupportedControlChar"] = 21] = "UnsupportedControlChar";
+     InputType[InputType["UnsupportedEscape"] = 22] = "UnsupportedEscape";
++    InputType[InputType["Tab"] = 23] = "Tab";
+ })(InputType || (exports.InputType = InputType = {}));
+ function parseInput(data) {
+@@ -130,4 +131,7 @@
+             let inputType = InputType.UnsupportedControlChar;
+             switch (val) {
++                case 0x9:
++                    inputType = InputType.Tab;
++                    break;
+                 case 0x1:
+                     inputType = InputType.CtrlA;

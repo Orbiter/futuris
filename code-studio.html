@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content" />
+		<meta name="color-scheme" content="dark" />
+		<title>Code Studio</title>
+		<link rel="icon" href="icons/mime-text-x-generic.svg" />
+		<link rel="stylesheet" href="css/futuris.css?v=1f58c4f0" />
+		<link rel="stylesheet" href="css/vfs-editor.css?v=e6a508da" />
+		<link rel="stylesheet" href="css/code-studio.css" />
+		<script defer src="js/vfs.js"></script>
+		<script defer src="js/vfs-browser.js"></script>
+		<script defer src="js/vendor/ace-1.45.2/ace.js"></script>
+		<script defer src="js/vendor/ace-1.45.2/ext-modelist.js"></script>
+		<script defer src="js/vfs-ace.js"></script>
+		<script defer src="js/code-studio.js"></script>
+	</head>
+	<body id="studio-page">
+		<iframe id="site-menu" title="Pages" src="navigation.html#code-studio"></iframe>
+		<main id="code-studio" aria-labelledby="studio-title" data-explorer-open="true">
+			<aside id="studio-explorer" aria-label="Explorer">
+				<header>
+					<h1 id="studio-title">Code Studio</h1>
+					<a href="vfs.html">VFS <span aria-hidden="true">↗</span></a>
+				</header>
+				<div id="studio-tree-scroll">
+					<p id="studio-tree-empty">Loading files…</p>
+					<ul id="studio-tree" aria-label="VFS files"></ul>
+				</div>
+			</aside>
+			<div id="studio-workbench">
+				<header id="studio-tabbar">
+					<button id="studio-toggle" type="button" aria-expanded="true" aria-controls="studio-explorer">Explorer</button>
+					<div id="studio-tabs" role="tablist" aria-label="Open files"></div>
+					<div id="studio-save-group" hidden>
+						<span id="studio-save-status" role="status"></span>
+						<button type="button" id="studio-save" aria-label="Save file" title="Save (Ctrl+S / Command+S)" aria-keyshortcuts="Control+S Meta+S">
+							<img src="icons/action-document-save.svg" alt="" />
+						</button>
+					</div>
+				</header>
+				<div id="studio-panel" role="tabpanel" hidden>
+					<div id="studio-filebar">
+						<span id="studio-path"></span>
+						<span id="studio-language"></span>
+					</div>
+					<div id="studio-editor"></div>
+				</div>
+				<div id="studio-empty">
+					<img src="icons/mime-text-x-generic.svg" alt="" />
+					<p>Open a file from the Explorer.</p>
+				</div>
+				<p id="studio-message" role="status" hidden></p>
+			</div>
+		</main>
+		<div id="studio-context" role="menu" aria-label="File actions" hidden>
+			<button type="button" role="menuitem" data-command="download">
+				<img src="icons/action-document-save-as.svg" alt="" /> Download
+			</button>
+			<button type="button" role="menuitem" data-command="rename">
+				<img src="icons/application-accessories-text-editor.svg" alt="" /> Rename
+			</button>
+			<button type="button" role="menuitem" data-command="delete">
+				<img src="icons/action-edit-delete.svg" alt="" /> Delete
+			</button>
+		</div>
+	</body>
+</html>

@@ -3,229 +3,97 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<title>Futuris Finder</title>
-		<link rel="stylesheet" href="css/futuris.css" />
-		<style>
-			.finder-editor {
-				position: fixed;
-				inset: 0;
-				background: rgba(6, 8, 14, 0.72);
-				display: none;
-				align-items: center;
-				justify-content: center;
-				z-index: 40;
-			}
-
-			.finder-editor[data-open="true"] {
-				display: flex;
-			}
-
-			.vfs-editor__dialog {
-				width: min(1200px, 98vw);
-				max-height: 95vh;
-				background: rgba(14, 18, 30, 0.98);
-				border: 1px solid var(--color-border);
-				border-radius: 12px;
-				box-shadow: 0 18px 36px rgba(0, 0, 0, 0.45);
-				padding: 16px;
-				display: flex;
-				flex-direction: column;
-				gap: 12px;
-			}
-
-			.vfs-editor__header {
-				display: flex;
-				justify-content: space-between;
-				align-items: baseline;
-				gap: 12px;
-			}
-
-			.vfs-editor__title {
-				margin: 0;
-				font-size: 1rem;
-				letter-spacing: 0.04em;
-				text-transform: uppercase;
-			}
-
-			.vfs-editor__path {
-				margin: 0;
-				font-family: var(--font-mono);
-				font-size: 0.8rem;
-				color: rgba(230, 240, 255, 0.65);
-			}
-
-			.vfs-editor__input {
-				min-height: 72vh;
-				resize: vertical;
-				background: rgba(10, 12, 20, 0.85);
-				border: 1px solid rgba(255, 255, 255, 0.1);
-				border-radius: 8px;
-				color: var(--color-foreground);
-				padding: 12px;
-				font-family: var(--font-mono);
-				font-size: 0.9rem;
-			}
-
-			.vfs-editor__input:focus {
-				outline: 1px solid var(--color-primary);
-			}
-
-			.vfs-editor__actions {
-				display: flex;
-				justify-content: flex-end;
-				gap: 8px;
-			}
-
-			.vfs-editor__actions button {
-				padding: 6px 14px;
-				font-size: 0.85rem;
-				background: rgba(15, 20, 34, 0.9);
-				border: 1px solid var(--color-border);
-				color: var(--color-foreground);
-				border-radius: 6px;
-			}
-
-			.vfs-editor__actions button:hover {
-				border-color: var(--color-primary);
-			}
-		</style>
+		<meta name="color-scheme" content="dark" />
+		<title>Futuris Explorer</title>
+		<link rel="stylesheet" href="css/futuris.css?v=1f58c4f0" />
+		<link rel="stylesheet" href="css/vfs-editor.css?v=e6a508da" />
 	</head>
 	<body>
+		<iframe id="site-menu" title="Pages" src="navigation.html#vfs"></iframe>
 		<header>
-			<nav id="site-nav" aria-label="Pages"></nav>
 			<h1>Virtual File System</h1>
-			<p>
-				A Finder-style browser powered by the Futuris virtual file system.
-			</p>
-			<section aria-label="Status modules">
-				<article>
-					<span aria-hidden="true">
-						<img src="icons/application-system-file-manager.svg" alt="" />
-					</span>
-					<div>
-						<p>Volume</p>
-						<p><strong>Root mount</strong></p>
-						<p>IndexedDB</p>
-					</div>
-				</article>
-				<article>
-					<span aria-hidden="true">
-						<img src="icons/status-folder-open.svg" alt="" />
-					</span>
-					<div>
-						<p>Nodes</p>
-						<p><strong>Tree view</strong></p>
-						<p>Recursive list</p>
-					</div>
-				</article>
-				<article>
-					<span aria-hidden="true">
-						<img src="icons/action-document-open-recent.svg" alt="" />
-					</span>
-					<div>
-						<p>Files</p>
-						<p><strong>Quick actions</strong></p>
-						<p>Upload, download</p>
-					</div>
-				</article>
-			</section>
+			<p>Browse, preview, and edit files stored in this browser.</p>
 		</header>
 
 		<div id="layout">
 			<main>
-				<section>
-					<h2>
-						<img src="icons/application-system-file-manager.svg" alt="" />
-						Root Browser
-					</h2>
-					<div id="finder-window" aria-label="File system browser">
-						<div id="finder-titlebar">
-							<div id="finder-controls" aria-hidden="true">
-								<span></span>
-								<span></span>
-								<span></span>
-							</div>
-							<div id="finder-path">/</div>
-							<div id="finder-toolbar">
-								<button type="button" id="finder-create-folder">New Folder</button>
-								<button type="button" id="finder-upload-button">Upload File</button>
-								<input type="file" id="finder-upload-input" />
-							</div>
+				<section id="finder-window" aria-labelledby="finder-title">
+					<div id="finder-titlebar">
+						<h2 id="finder-title">Explorer</h2>
+						<div id="finder-toolbar">
+							<button type="button" id="finder-create-folder">New Folder</button>
+							<button type="button" id="finder-upload-button">Upload File</button>
+							<button type="button" id="finder-upload-zip">Upload ZIP</button>
+							<input type="file" id="finder-upload-input" />
 						</div>
-						<div id="finder-body">
-							<div>
-								<ul id="finder-list" aria-label="Root contents"></ul>
-								<p id="finder-empty">No files yet. Upload a file or create a folder.</p>
-							</div>
-							<div id="finder-preview">
-								<h3 id="finder-preview-title">Preview</h3>
-								<div id="finder-preview-body">
-									<p>Select a .txt or .md file to preview.</p>
-								</div>
-							</div>
+					</div>
+					<p id="finder-status" role="status"></p>
+					<div id="finder-body">
+						<div>
+							<ul id="finder-list" aria-label="Root contents"></ul>
+							<p id="finder-empty">No files yet. Upload a file or create a folder.</p>
 						</div>
+						<div id="finder-preview">
+							<h2 id="finder-preview-title">Preview</h2>
+							<div id="finder-preview-body">
+								<p>Select a file to open it.</p>
+						</div>
+					</div>
 					</div>
 				</section>
 			</main>
 		</div>
 
-		<div id="vfs-editor" class="finder-editor" aria-hidden="true">
-			<div
-				id="vfs-editor-dialog"
-				class="vfs-editor__dialog"
-				role="dialog"
-				aria-modal="true"
-				aria-labelledby="vfs-editor-title"
-			>
-				<div id="vfs-editor-header" class="vfs-editor__header">
-					<h3 id="vfs-editor-title" class="vfs-editor__title">Edit file</h3>
-					<p id="vfs-editor-path" class="vfs-editor__path"></p>
-				</div>
-				<textarea id="vfs-editor-input" class="vfs-editor__input" spellcheck="false"></textarea>
-				<div id="vfs-editor-actions" class="vfs-editor__actions">
-					<button type="button" id="vfs-editor-discard">discard</button>
-					<button type="button" id="vfs-editor-save">save</button>
+		<dialog id="vfs-editor" aria-labelledby="vfs-editor-title" aria-describedby="vfs-editor-path">
+			<div id="vfs-editor-header">
+				<h2 id="vfs-editor-title">Edit file</h2>
+				<span id="vfs-editor-mode"></span>
+				<p id="vfs-editor-path"></p>
+			</div>
+			<div id="vfs-editor-input"></div>
+			<div id="vfs-editor-footer">
+				<p id="vfs-editor-status" role="status"></p>
+				<div id="vfs-editor-actions">
+					<button type="button" id="vfs-editor-discard">Discard</button>
+					<button type="button" id="vfs-editor-save" aria-keyshortcuts="Control+S Meta+S">Save</button>
 				</div>
 			</div>
-		</div>
+		</dialog>
 
-		<script defer src="js/futuris.js"></script>
 		<script defer src="js/vfs.js"></script>
+		<script defer src="js/vfs-browser.js"></script>
+		<script defer src="js/vendor/zip-2.25.0.min.js"></script>
+		<script defer src="js/vfs-zip.js"></script>
 		<script defer src="js/highlight.min.js"></script>
+		<script defer src="js/vendor/ace-1.45.2/ace.js"></script>
+		<script defer src="js/vendor/ace-1.45.2/ext-modelist.js"></script>
+		<script defer src="js/vfs-ace.js"></script>
+		<script defer src="js/vfs-editor.js"></script>
 		<script>
 			window.addEventListener("DOMContentLoaded", () => {
-(function () {
 	const finderList = document.getElementById("finder-list");
 	const finderEmpty = document.getElementById("finder-empty");
 	const createFolderButton = document.getElementById("finder-create-folder");
 	const uploadButton = document.getElementById("finder-upload-button");
+	const uploadZipButton = document.getElementById("finder-upload-zip");
 	const uploadInput = document.getElementById("finder-upload-input");
+	const status = document.getElementById("finder-status");
 	const previewTitle = document.getElementById("finder-preview-title");
 	const previewBody = document.getElementById("finder-preview-body");
-	const editorOverlay = document.getElementById("vfs-editor");
-	const editorTitle = document.getElementById("vfs-editor-title");
-	const editorPathLabel = document.getElementById("vfs-editor-path");
-	const editorInput = document.getElementById("vfs-editor-input");
-	const editorDiscard = document.getElementById("vfs-editor-discard");
-	const editorSave = document.getElementById("vfs-editor-save");
 	const expandedPaths = new Set(["/"]);
 	let selectedPath = null;
 	let activeDropTarget = null;
-	let editorPath = null;
+	let refreshRequest = 0;
 
 	if (
 		!finderList ||
 		!uploadInput ||
 		!uploadButton ||
+		!uploadZipButton ||
+		!status ||
 		!createFolderButton ||
 		!previewTitle ||
-		!previewBody ||
-		!editorOverlay ||
-		!editorTitle ||
-		!editorPathLabel ||
-		!editorInput ||
-		!editorDiscard ||
-		!editorSave
+		!previewBody
 	) {
 		return;
 	}
@@ -237,10 +105,6 @@
 		{ path: "/Design/notes.md", value: "Palette notes and layout ideas." },
 		{ path: "/Readme.md", value: "Welcome to the Futuris VFS root." }
 	];
-
-	const refreshDelay = (fn) => {
-		setTimeout(fn, 120);
-	};
 
 	const escapeHtml = (value) =>
 		String(value)
@@ -263,59 +127,37 @@
 		return escapeHtml(text);
 	};
 
-	const readFileAsText = (file) =>
-		new Promise((resolve, reject) => {
-			const reader = new FileReader();
-			reader.onload = () => resolve(reader.result || "");
-			reader.onerror = () => reject(reader.error || new Error("Upload failed"));
-			reader.readAsText(file);
-		});
+	const setStatus = (message, isError = false) => {
+		status.textContent = message;
+		status.dataset.error = String(isError);
+	};
 
-	const buildTree = (entries) => {
-		const root = { name: "/", path: "/", type: "folder", children: new Map() };
+	const createRowAction = (action, title, iconName) => {
+		const button = document.createElement("button");
+		button.type = "button";
+		button.dataset.action = action;
+		button.draggable = false;
+		button.title = title;
+		const icon = document.createElement("img");
+		icon.alt = "";
+		icon.draggable = false;
+		icon.dataset.icon = action;
+		icon.src = `icons/${iconName}.svg`;
+		button.appendChild(icon);
+		return button;
+	};
 
-		entries.forEach((entry) => {
-			if (!entry) return;
-			const isDir = entry.endsWith("/");
-			const parts = entry.split("/").filter(Boolean);
-			let current = root;
-			let currentPath = "/";
-
-			parts.forEach((part, index) => {
-				const isLast = index === parts.length - 1;
-				const partIsDir = isLast ? isDir : true;
-				const nextPath = `${currentPath}${part}${partIsDir ? "/" : ""}`;
-				if (!current.children.has(part)) {
-					current.children.set(part, {
-						name: part,
-						path: nextPath,
-						type: partIsDir ? "folder" : "file",
-						children: new Map()
-					});
-				}
-				const child = current.children.get(part);
-				if (partIsDir) {
-					child.type = "folder";
-				} else if (isLast) {
-					child.type = "file";
-				}
-				current = child;
-				currentPath = nextPath;
-			});
-		});
-
-		return root;
+	const addWebsiteActions = (folder, actions) => {
+		const play = createVfsPreviewLink(folder);
+		if (!play) return;
+		actions.append(play, createRowAction("edit-index", "Edit index.html", "action-document-open"));
 	};
 
 	const renderTree = (node, container) => {
-		const nodes = Array.from(node.children.values()).sort((a, b) => {
-			if (a.type !== b.type) {
-				return a.type === "folder" ? -1 : 1;
-			}
-			return a.name.localeCompare(b.name);
-		});
+		const nodes = sortedVfsChildren(node);
 
 		nodes.forEach((child) => {
+			const isExpanded = expandedPaths.has(child.path);
 			const li = document.createElement("li");
 			li.dataset.path = child.path;
 			li.dataset.kind = child.type;
@@ -332,8 +174,8 @@
 				toggle.type = "button";
 				toggle.dataset.action = "toggle";
 				toggle.setAttribute("draggable", "false");
-				toggle.textContent = expandedPaths.has(child.path) ? "v" : ">";
-				toggle.setAttribute("aria-label", expandedPaths.has(child.path) ? "Collapse folder" : "Expand folder");
+				toggle.setAttribute("aria-expanded", String(isExpanded));
+				toggle.setAttribute("aria-label", isExpanded ? "Collapse folder" : "Expand folder");
 				row.appendChild(toggle);
 				row.dataset.dropPath = child.path;
 			} else {
@@ -350,59 +192,34 @@
 			icon.src = child.type === "folder" ? "icons/place-folder.svg" : "icons/mime-text-x-generic.svg";
 			row.appendChild(icon);
 
-			const name = document.createElement("span");
+			const name = document.createElement(child.type === "file" ? "button" : "span");
 			name.textContent = child.name;
 			name.dataset.role = "name";
+			if (child.type === "file") {
+				name.type = "button";
+				name.dataset.action = "edit";
+			}
 			row.appendChild(name);
 
 			const actions = document.createElement("span");
 			actions.dataset.role = "actions";
 
 			if (child.type === "file") {
-				const edit = document.createElement("button");
-				edit.type = "button";
-				edit.dataset.action = "edit";
-				edit.setAttribute("draggable", "false");
-				edit.title = "Edit file";
-				const editIcon = document.createElement("img");
-				editIcon.alt = "";
-				editIcon.setAttribute("draggable", "false");
-				editIcon.dataset.icon = "edit";
-				editIcon.src = "icons/action-document-open.svg";
-				edit.appendChild(editIcon);
-				actions.appendChild(edit);
-
-				const download = document.createElement("button");
-				download.type = "button";
-				download.dataset.action = "download";
-				download.setAttribute("draggable", "false");
-				download.title = "Download file";
-				const downloadIcon = document.createElement("img");
-				downloadIcon.alt = "";
-				downloadIcon.setAttribute("draggable", "false");
-				downloadIcon.dataset.icon = "download";
-				downloadIcon.src = "icons/action-document-save-as.svg";
-				download.appendChild(downloadIcon);
-				actions.appendChild(download);
+				actions.append(
+					createRowAction("edit", "Edit file", "action-document-open"),
+					createRowAction("download", "Download file", "action-document-save-as")
+				);
+			} else {
+				addWebsiteActions(child, actions);
+				actions.appendChild(createRowAction("download", "Download folder as ZIP", "mime-package-x-generic"));
 			}
 
-			const remove = document.createElement("button");
-			remove.type = "button";
-			remove.dataset.action = "delete";
-			remove.setAttribute("draggable", "false");
-			remove.title = "Delete";
-			const deleteIcon = document.createElement("img");
-			deleteIcon.alt = "";
-			deleteIcon.setAttribute("draggable", "false");
-			deleteIcon.dataset.icon = "delete";
-			deleteIcon.src = "icons/action-edit-delete.svg";
-			remove.appendChild(deleteIcon);
-			actions.appendChild(remove);
+			actions.appendChild(createRowAction("delete", "Delete", "action-edit-delete"));
 
 			row.appendChild(actions);
 			li.appendChild(row);
 
-			if (child.type === "folder" && expandedPaths.has(child.path)) {
+			if (child.type === "folder" && isExpanded) {
 				const nestedList = document.createElement("ul");
 				nestedList.dataset.dropPath = child.path;
 				renderTree(child, nestedList);
@@ -414,17 +231,20 @@
 	};
 
 	const refreshView = async () => {
+		const request = ++refreshRequest;
 		const vfs = await window.vfsReady;
-		const entries = await vfs.ls("/");
+		let entries = await vfs.ls("/");
+		if (request !== refreshRequest) return;
 		if (entries.length === 0) {
 			for (const entry of seedEntries) {
 				await vfs.put(entry.path, entry.value);
 			}
+			entries = await vfs.ls("/");
+			if (request !== refreshRequest) return;
 		}
 
-		const updatedEntries = await vfs.ls("/");
-		finderList.innerHTML = "";
-		const tree = buildTree(updatedEntries);
+		const tree = buildVfsTree(entries);
+		const isRootExpanded = expandedPaths.has("/");
 
 		const rootItem = document.createElement("li");
 		rootItem.dataset.path = "/";
@@ -437,8 +257,8 @@
 		rootToggle.type = "button";
 		rootToggle.dataset.action = "toggle";
 		rootToggle.setAttribute("draggable", "false");
-		rootToggle.textContent = expandedPaths.has("/") ? "v" : ">";
-		rootToggle.setAttribute("aria-label", expandedPaths.has("/") ? "Collapse folder" : "Expand folder");
+		rootToggle.setAttribute("aria-expanded", String(isRootExpanded));
+		rootToggle.setAttribute("aria-label", isRootExpanded ? "Collapse folder" : "Expand folder");
 		rootRow.appendChild(rootToggle);
 
 		const rootIcon = document.createElement("img");
@@ -452,51 +272,30 @@
 		rootName.textContent = "/";
 		rootName.dataset.role = "name";
 		rootRow.appendChild(rootName);
+		const rootActions = document.createElement("span");
+		rootActions.dataset.role = "actions";
+		addWebsiteActions(tree, rootActions);
+		rootActions.appendChild(createRowAction("download", "Download folder as ZIP", "mime-package-x-generic"));
+		rootRow.appendChild(rootActions);
 
 		rootItem.appendChild(rootRow);
 
-		if (expandedPaths.has("/")) {
+		if (isRootExpanded) {
 			const nestedList = document.createElement("ul");
 			nestedList.dataset.dropPath = "/";
 			renderTree(tree, nestedList);
 			rootItem.appendChild(nestedList);
 		}
 
-		finderList.appendChild(rootItem);
-		finderEmpty.style.display = updatedEntries.length ? "none" : "block";
+		finderList.replaceChildren(rootItem);
+		finderEmpty.style.display = entries.length ? "none" : "block";
 	};
 
-	const refreshSoon = () => {
-		refreshDelay(refreshView);
-	};
-
-	const showPreviewPlaceholder = (message) => {
+	const showPreviewPlaceholder = (message = "Select a file to open it.") => {
 		previewTitle.textContent = "Preview";
-		previewBody.innerHTML = `<p>${escapeHtml(message)}</p>`;
-	};
-
-	const openEditor = async (path) => {
-		if (!path || path.endsWith("/")) return;
-		try {
-			const vfs = await window.vfsReady;
-			const contents = await vfs.getasync(path);
-			editorPath = path;
-			editorTitle.textContent = "Edit file";
-			editorPathLabel.textContent = path;
-			editorInput.value = contents;
-			editorOverlay.dataset.open = "true";
-			editorOverlay.setAttribute("aria-hidden", "false");
-			editorInput.focus();
-		} catch (error) {
-			window.alert("Unable to load file for editing.");
-		}
-	};
-
-	const closeEditor = () => {
-		editorPath = null;
-		editorOverlay.removeAttribute("data-open");
-		editorOverlay.setAttribute("aria-hidden", "true");
-		editorInput.value = "";
+		const paragraph = document.createElement("p");
+		paragraph.textContent = message;
+		previewBody.replaceChildren(paragraph);
 	};
 
 	const extensionToLanguage = (name) => {
@@ -534,7 +333,7 @@
 
 	const updatePreview = async (path) => {
 		if (!path) {
-			showPreviewPlaceholder("Select a file to preview.");
+			showPreviewPlaceholder();
 			return;
 		}
 
@@ -544,14 +343,26 @@
 		try {
 			const vfs = await window.vfsReady;
 			const contents = await vfs.getasync(path);
+			if (path !== selectedPath) return;
 			previewTitle.textContent = fileName;
+			if (typeof contents !== "string") {
+				previewBody.textContent = "Binary file. Download it to view its contents.";
+				return;
+			}
 			const highlighted = renderHighlighted(contents, languageHint);
 			const languageClass = languageHint ? ` language-${languageHint}` : "";
 			previewBody.innerHTML = `<pre><code class="hljs${languageClass}">${highlighted}</code></pre>`;
 		} catch (error) {
-			showPreviewPlaceholder("Unable to load file preview.");
+			if (path === selectedPath) showPreviewPlaceholder("Unable to load file preview.");
 		}
 	};
+
+	const openEditor = createVfsEditor({
+		onStatus: setStatus,
+		onSaved(path) {
+			if (selectedPath === path) updatePreview(path);
+		}
+	});
 
 	createFolderButton.addEventListener("click", async () => {
 		const name = window.prompt("Folder name");
@@ -561,35 +372,76 @@
 			window.alert("Folder name must be a single segment.");
 			return;
 		}
-		const vfs = await window.vfsReady;
-		await vfs.mkdir(`/${trimmed}/`);
-		expandedPaths.add(`/${trimmed}/`);
-		refreshSoon();
+		try {
+			const vfs = await window.vfsReady;
+			expandedPaths.add(await vfs.mkdir(`/${trimmed}/`));
+			await refreshView();
+		} catch (error) {
+			setStatus(`Unable to create folder: ${error?.message || error}`, true);
+		}
 	});
 
 	uploadButton.addEventListener("click", () => {
+		uploadInput.removeAttribute("accept");
+		uploadInput.click();
+	});
+
+	uploadZipButton.addEventListener("click", () => {
+		uploadInput.accept = ".zip,application/zip,application/x-zip-compressed";
 		uploadInput.click();
 	});
 
 	uploadInput.addEventListener("change", async (event) => {
-		const files = Array.from(event.target.files || []);
-		if (!files.length) return;
-		const vfs = await window.vfsReady;
-		for (const file of files) {
-			const contents = await readFileAsText(file);
-			await vfs.put(`/${file.name}`, contents);
+		const file = event.target.files[0];
+		if (!file) return;
+		uploadButton.disabled = true;
+		uploadZipButton.disabled = true;
+		try {
+			const vfs = await window.vfsReady;
+			if (uploadInput.hasAttribute("accept") || /\.zip$/i.test(file.name)) {
+				setStatus(`Extracting ${file.name}…`);
+				const path = await vfsZip.importFolder(vfs, file);
+				expandedPaths.add("/");
+				expandedPaths.add(path);
+				setStatus(`Extracted to ${path}`);
+			} else {
+				const contents = vfs.fileSystem.fileValue(new Uint8Array(await file.arrayBuffer()));
+				await vfs.put(`/${file.name}`, contents);
+				setStatus("");
+			}
+			await refreshView();
+		} catch (error) {
+			setStatus(`Upload failed: ${error?.message || error || "Unknown error."}`, true);
+		} finally {
+			uploadInput.value = "";
+			uploadButton.disabled = false;
+			uploadZipButton.disabled = false;
 		}
-		uploadInput.value = "";
-		refreshSoon();
 	});
 
 	finderList.addEventListener("click", async (event) => {
-		const button = event.target.closest("button[data-action]");
-		if (!button) return;
-		const item = button.closest("li");
-		if (!item) return;
+		const row = event.target.closest("li > div");
+		if (!row) return;
+		const item = row.parentElement;
 		const path = item.dataset.path;
-		const action = button.dataset.action;
+		const button = event.target.closest("button[data-action]");
+		const action = button?.dataset.action;
+
+		if (action === "edit-index") {
+			await openEditor(`${path}index.html`);
+			return;
+		}
+
+		if (!action || action === "edit") {
+			if (item.dataset.kind !== "file" || (!button && event.target.closest('[data-role="actions"]'))) return;
+			finderList.querySelector('[data-selected="true"]')?.removeAttribute("data-selected");
+			selectedPath = path;
+			row.dataset.selected = "true";
+			updatePreview(path);
+			await openEditor(path);
+			return;
+		}
+
 		const vfs = await window.vfsReady;
 
 		if (action === "toggle") {
@@ -598,59 +450,51 @@
 			} else {
 				expandedPaths.add(path);
 			}
-			refreshView();
+			await refreshView();
+			if (document.activeElement === document.body) {
+				finderList.querySelector(`li[data-path="${CSS.escape(path)}"] > div > [data-action="toggle"]`)?.focus();
+			}
 			return;
 		}
 
 		if (action === "delete") {
-			await vfs.deleteTree(path);
+			try {
+				await vfs.deleteTree(path);
+			} catch (error) {
+				setStatus(`Unable to delete entry: ${error?.message || error}`, true);
+				return;
+			}
 			if (path.endsWith("/")) {
 				expandedPaths.delete(path);
 				if (selectedPath && selectedPath.startsWith(path)) {
 					selectedPath = null;
-					showPreviewPlaceholder("Select a file to preview.");
+					showPreviewPlaceholder();
 				}
 			} else if (selectedPath === path) {
 				selectedPath = null;
-				showPreviewPlaceholder("Select a file to preview.");
+				showPreviewPlaceholder();
 			}
-			refreshSoon();
+			await refreshView();
 			return;
 		}
 
 		if (action === "download") {
+			button.disabled = true;
 			try {
-				const contents = await vfs.getasync(path);
-				const blob = new Blob([contents], { type: "text/plain" });
-				const url = URL.createObjectURL(blob);
-				const link = document.createElement("a");
-				link.href = url;
-				link.download = path.split("/").pop() || "download.txt";
-				document.body.appendChild(link);
-				link.click();
-				document.body.removeChild(link);
-				URL.revokeObjectURL(url);
+				if (path.endsWith("/")) {
+					setStatus(`Creating ZIP for ${path}…`);
+					const { name, blob } = await vfsZip.exportFolder(vfs, path);
+					downloadVfsBlob(blob, name);
+					setStatus(`ZIP ready: ${name}`);
+				} else {
+					await downloadVfsFile(vfs, path);
+				}
 			} catch (error) {
-				window.alert("Unable to download file.");
+				setStatus(`Download failed: ${error?.message || error || "Unknown error."}`, true);
+			} finally {
+				button.disabled = false;
 			}
-			return;
 		}
-
-		if (action === "edit") {
-			openEditor(path);
-		}
-	});
-
-	finderList.addEventListener("click", (event) => {
-		const button = event.target.closest("button[data-action]");
-		if (button) return;
-		const row = event.target.closest("li > div");
-		if (!row) return;
-		const item = row.closest("li");
-		if (!item || item.dataset.kind !== "file") return;
-		selectedPath = item.dataset.path;
-		refreshView();
-		updatePreview(selectedPath);
 	});
 
 	finderList.addEventListener("dragstart", (event) => {
@@ -725,43 +569,10 @@
 			delete activeDropTarget.dataset.dropTarget;
 			activeDropTarget = null;
 		}
-		refreshSoon();
+		await refreshView();
 	});
 
-	editorOverlay.addEventListener("click", (event) => {
-		if (event.target === editorOverlay) {
-			closeEditor();
-		}
-	});
-
-	editorDiscard.addEventListener("click", () => {
-		closeEditor();
-	});
-
-	editorSave.addEventListener("click", async () => {
-		if (!editorPath) {
-			closeEditor();
-			return;
-		}
-		const vfs = await window.vfsReady;
-		await vfs.put(editorPath, editorInput.value);
-		const savedPath = editorPath;
-		closeEditor();
-		if (selectedPath === savedPath) {
-			updatePreview(savedPath);
-		}
-	});
-
-	const clearActiveDrop = () => {
-		if (activeDropTarget) {
-			delete activeDropTarget.dataset.dropTarget;
-			activeDropTarget = null;
-		}
-	};
-
-	refreshView();
-	updatePreview(selectedPath);
-})();
+	refreshView().catch((error) => setStatus(`Unable to list files: ${error?.message || error}`, true));
 			});
 		</script>
 	</body>

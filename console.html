@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content" />
+		<meta name="color-scheme" content="dark" />
+		<title>Console</title>
+		<link rel="icon" href="icons/application-utilities-terminal.svg" />
+		<link rel="stylesheet" href="css/futuris.css?v=1f58c4f0" />
+		<link rel="stylesheet" href="js/vendor/xterm-6.0.0.css" />
+		<link rel="stylesheet" href="css/console.css" />
+		<script defer src="js/vfs.js"></script>
+		<script defer src="js/vendor/xterm-6.0.0.js"></script>
+		<script defer src="js/vendor/xterm-addon-fit-0.11.0.js"></script>
+		<script defer src="js/vendor/xterm-readline-2.0.0.js"></script>
+		<script defer src="js/vendor/just-bash-3.6.1.browser.js"></script>
+		<script defer src="js/just-bash-vfs.js"></script>
+		<script defer src="js/console-completion.js"></script>
+		<script defer src="js/console.js"></script>
+	</head>
+	<body id="console-page">
+		<iframe id="site-menu" title="Pages" src="navigation.html#console"></iframe>
+		<main id="console">
+			<header>
+				<div>
+					<h1>Console</h1>
+					<p>Bash shell for the virtual file system</p>
+				</div>
+				<a href="vfs.html">Explorer <span aria-hidden="true">↗</span></a>
+			</header>
+			<section id="console-shell" aria-label="Bash terminal">
+				<header>
+					<span id="console-cwd">/</span>
+					<p id="console-status" role="status">Opening VFS…</p>
+					<button id="console-interrupt" type="button" hidden>Interrupt</button>
+				</header>
+				<div id="console-output"></div>
+			</section>
+			<p id="console-keys"><kbd>Tab</kbd> Complete path <span>·</span> <kbd>↑</kbd> <kbd>↓</kbd> History <span>·</span> <kbd>Ctrl+C</kbd> Interrupt <span>·</span> <kbd>Shift+Enter</kbd> New line</p>
+		</main>
+	</body>
+</html>

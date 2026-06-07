@@ -3,63 +3,61 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="color-scheme" content="dark" />
 		<title>Futuris LLM Configuration</title>
-		<link rel="stylesheet" href="css/futuris.css" />
+		<link rel="stylesheet" href="css/futuris.css?v=1f58c4f0" />
 		<style>
-			#model-table input[type="checkbox"] {
+			#model-table input[type="radio"] {
 				margin: 0;
 				width: 16px;
 				height: 16px;
-				box-shadow: none;
 			}
 
-			#model-table input[type="checkbox"]:focus,
-			#model-table input[type="checkbox"]:focus-visible {
-				outline: none;
-				box-shadow: none;
+			#model-table label {
+				margin: 0;
+				cursor: pointer;
+			}
+
+			#thinking-option {
+				display: flex;
+				align-items: center;
+				gap: 0.55rem;
+				width: fit-content;
+				margin-bottom: 0.85rem;
+				cursor: pointer;
+			}
+
+			#thinking {
+				width: 1rem;
+				height: 1rem;
+				margin: 0;
+			}
+
+			#ollama-cors-help {
+				margin-block: 0 1rem;
+				padding: 0.8rem 1rem;
+				border: 1px solid var(--color-border);
+				border-inline-start: 2px solid var(--color-amber);
+				border-radius: var(--radius);
+				background: var(--color-surface-raised);
+			}
+
+			#ollama-cors-help p {
+				margin: 0;
+			}
+
+			#ollama-cors-help pre {
+				margin-block: 0.6rem;
+				padding: 0.55rem 0.75rem;
+				white-space: pre-wrap;
 			}
 		</style>
 	</head>
 	<body>
+		<iframe id="site-menu" title="Pages" src="navigation.html#LLM"></iframe>
 		<header>
-			<nav id="site-nav" aria-label="Pages"></nav>
 			<h1>LLM Configuration</h1>
-			<p>
-				Live listing of models served from the default LLM API endpoint at
-				<code>http://localhost:11434</code>.
-			</p>
-			<section aria-label="Status modules">
-				<article>
-					<span aria-hidden="true">
-						<img src="icons/place-network-server.svg" alt="" />
-					</span>
-					<div>
-						<p>Endpoint</p>
-						<p><strong>Localhost</strong></p>
-						<p>Port 11434</p>
-					</div>
-				</article>
-				<article>
-					<span aria-hidden="true">
-						<img src="icons/status-sync-synchronizing.svg" alt="" />
-					</span>
-					<div>
-						<p>Refresh</p>
-						<p><strong>On demand</strong></p>
-						<p>Manual reload</p>
-					</div>
-				</article>
-				<article>
-					<span aria-hidden="true">
-						<img src="icons/application-system-software-update.svg" alt="" />
-					</span>
-					<div>
-						<p>Source</p>
-						<p><strong>/v1/models</strong></p>
-						<p>OpenAI compatible</p>
-					</div>
-				</article>
-			</section>
+			<p>Select a model from the configured API host to use in Chat.</p>
 		</header>
 
 		<div id="layout">
@@ -76,9 +74,20 @@
 						<label for="systemprompt">System prompt</label>
 						<textarea id="systemprompt" name="systemprompt"></textarea>
 
+						<label id="thinking-option" for="thinking">
+							<input id="thinking" name="thinking" type="checkbox" checked />
+							Allow thinking
+						</label>
+
 						<button type="submit">Save &amp; Reload</button>
 					</form>
-					<p id="model-status">Loading models...</p>
+					<p id="model-status" role="status">Loading models...</p>
+					<aside id="ollama-cors-help" aria-labelledby="ollama-cors-title" hidden>
+						<h3 id="ollama-cors-title">Ollama CORS on macOS</h3>
+						<p>If your browser reports a CORS error, run this command in the macOS Terminal.</p>
+						<pre><code>launchctl setenv OLLAMA_ORIGINS "*"</code></pre>
+						<p>Quit Ollama, reopen it, and select <strong>Refresh list</strong>.</p>
+					</aside>
 					<button type="button" id="refresh-models">Refresh list</button>
 					<table id="model-table" hidden>
 						<thead>
@@ -97,6 +106,5 @@
 
 		<script src="js/llm.js"></script>
 		<script src="js/vfs.js"></script>
-		<script src="js/futuris.js"></script>
 	</body>
 </html>

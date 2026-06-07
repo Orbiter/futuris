@@ -3,17 +3,16 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="color-scheme" content="dark" />
 		<title>Isometric Blocks</title>
-		<link rel="stylesheet" href="css/futuris.css" />
+		<link rel="stylesheet" href="css/futuris.css?v=1f58c4f0" />
 		<style>
 			:root {
-				--iso-tile: clamp(48px, 5.8vw, 80px);
+				--iso-tile: 64px;
 				--iso-unit: 4px;
-				--iso-floor: rgba(9, 14, 24, 0.85);
-				--iso-floor-glow: rgba(0, 196, 255, 0.2);
-				--iso-box-top: #f6f7ff;
-				--iso-box-left: #9aa6d6;
-				--iso-box-right: #6d79b2;
+				--iso-box-top: var(--color-foreground);
+				--iso-box-left: #7c8db8;
+				--iso-box-right: #485576;
 			}
 			#iso-layout {
 				display: grid;
@@ -24,10 +23,9 @@
 			#iso-shell {
 				position: relative;
 				padding: 24px 18px 24px;
-				border: 1px solid rgba(0, 196, 255, 0.35);
-				background: linear-gradient(160deg, rgba(4, 8, 16, 0.85), rgba(16, 10, 26, 0.85));
-				box-shadow: 0 0 24px rgba(0, 196, 255, 0.2);
-				min-height: 700px;
+				border: 1px solid var(--color-border);
+				border-radius: var(--radius);
+				background: var(--color-surface-inset);
 				display: grid;
 				grid-template-rows: auto auto;
 				gap: 12px;
@@ -51,16 +49,16 @@
 				display: grid;
 				gap: 12px;
 				padding: 14px;
-				border: 1px solid rgba(0, 196, 255, 0.35);
-				background: linear-gradient(150deg, rgba(8, 12, 22, 0.85), rgba(18, 9, 28, 0.85));
+				border: 1px solid var(--color-border);
+				border-radius: var(--radius);
+				background: var(--color-background-box);
 			}
 			#iso-legend h3 {
 				margin: 0;
 				font-size: 0.85rem;
 				letter-spacing: 0.08em;
 				text-transform: uppercase;
-				color: #7ee6ff;
-				text-shadow: 0 0 6px rgba(0, 196, 255, 0.6);
+				color: var(--color-amber);
 			}
 			#iso-legend ul {
 				margin: 0;
@@ -79,14 +77,16 @@
 				font-size: 0.85rem;
 				letter-spacing: 0.08em;
 				text-transform: uppercase;
-				color: #7ee6ff;
-				text-shadow: 0 0 6px rgba(0, 196, 255, 0.6);
+				color: var(--color-amber);
 			}
 			#iso-stats span {
-				color: #e9f6ff;
-				text-shadow: 0 0 6px rgba(0, 196, 255, 0.5);
+				color: var(--color-foreground);
 			}
 			@media (max-width: 900px) {
+				:root {
+					--iso-unit: 2px;
+				}
+
 				#iso-layout {
 					grid-template-columns: 1fr;
 				}
@@ -94,12 +94,11 @@
 		</style>
 	</head>
 	<body>
+		<iframe id="site-menu" title="Pages" src="navigation.html#isometric"></iframe>
 		<header>
-			<nav id="site-nav" aria-label="Pages"></nav>
 			<h1>Isometric Blocks</h1>
 			<p>
-				16x16 field board rendered in isometric view. Each field stores a 16-character
-				string with dots for empty slots and block characters for terrain.
+				Build on a 16 × 16 isometric grid with up to eight blocks per tile.
 			</p>
 		</header>
 		<div id="layout">
@@ -126,20 +125,26 @@
 							<li><strong>+</strong> add block</li>
 							<li><strong>-</strong> remove block</li>
 						</ul>
-						<div id="iso-stats"></div>
+						<div id="iso-stats">
+							<h3>Board Stats</h3>
+							<span>Empty fields: <output id="iso-empty"></output></span>
+							<span>Box fields: <output id="iso-occupied"></output></span>
+							<span>Total blocks: <output id="iso-blocks"></output></span>
+						</div>
 					</aside>
 				</div>
 			</main>
 		</div>
 
 		<script src="js/vfs.js"></script>
-		<script src="js/futuris.js"></script>
 		<script>
 			const BOARD_SIZE = 16;
 			const BLOCKS_PER_FIELD = 8;
 			const EMPTY_SLOT = ".";
 			const isoBoardEl = document.getElementById("iso-board");
-			const isoStatsEl = document.getElementById("iso-stats");
+			const emptyFields = document.getElementById("iso-empty");
+			const occupiedFields = document.getElementById("iso-occupied");
+			const blockCount = document.getElementById("iso-blocks");
 			const player = {
 				row: Math.floor(Math.random() * BOARD_SIZE),
 				col: Math.floor(Math.random() * BOARD_SIZE)
@@ -149,45 +154,13 @@
 			// - 256-element array, index 0..255, row-major order.
 			// - Each field is an 8-character string.
 			// - '.' means empty, 'X' is a full box.
-			const board = Array(BOARD_SIZE * BOARD_SIZE).fill(EMPTY_SLOT.repeat(BLOCKS_PER_FIELD));
-
-			function makeFieldString(hasTower) {
-				if (!hasTower) {
-					return EMPTY_SLOT.repeat(BLOCKS_PER_FIELD);
-				}
-				const slots = Array(BLOCKS_PER_FIELD).fill(EMPTY_SLOT);
-				let placed = 0;
-				for (let i = 0; i < BLOCKS_PER_FIELD; i++) {
-					if (Math.random() < 0.01) {
-						slots[i] = "X";
-						placed++;
-					}
-				}
-				if (placed === 0) {
-					slots[Math.floor(Math.random() * BLOCKS_PER_FIELD)] = "X";
-				}
-				return slots.join("");
-			}
-
-			function seedBoard() {
-				for (let i = 0; i < board.length; i++) {
-					board[i] = makeFieldString(false);
-				}
-			}
-
-			function serializeBoard() {
-				return {
-					size: BOARD_SIZE,
-					levels: BLOCKS_PER_FIELD,
-					board: board.slice(),
-					player: { row: player.row, col: player.col }
-				};
-			}
+			const emptyField = EMPTY_SLOT.repeat(BLOCKS_PER_FIELD);
+			const board = Array(BOARD_SIZE * BOARD_SIZE).fill(emptyField);
 
 			async function saveBoard() {
 				try {
 					const vfs = await window.vfsReady;
-					const payload = JSON.stringify(serializeBoard(), null, 2);
+					const payload = JSON.stringify({ size: BOARD_SIZE, levels: BLOCKS_PER_FIELD, board, player }, null, 2);
 					await vfs.put("/isometric.json", payload);
 				} catch (error) {
 					console.warn("VFS save failed", error);
@@ -212,7 +185,7 @@
 					if (parsed.board.length !== BOARD_SIZE * BOARD_SIZE) return;
 					for (let i = 0; i < board.length; i++) {
 						const value = parsed.board[i];
-						board[i] = isValidField(value) ? value : makeFieldString(false);
+						board[i] = isValidField(value) ? value : emptyField;
 					}
 					if (parsed.player && Number.isInteger(parsed.player.row) && Number.isInteger(parsed.player.col)) {
 						const nextRow = Math.max(0, Math.min(BOARD_SIZE - 1, parsed.player.row));
@@ -225,13 +198,7 @@
 				}
 			}
 
-			function classifyField(field) {
-				if (field.includes("X")) return "box";
-				return "empty";
-			}
-
 			function renderBoard() {
-				isoBoardEl.innerHTML = "";
 				let countBox = 0;
 				let countEmpty = 0;
 				let totalBlocks = 0;
@@ -241,7 +208,7 @@
 				const desiredTile = parseFloat(getComputedStyle(root).getPropertyValue("--iso-tile")) || 64;
 				const availableWidth = stageEl.clientWidth || 0;
 				const maxTile = availableWidth ? Math.floor(availableWidth / BOARD_SIZE) : desiredTile;
-				const tileSize = Math.max(28, Math.min(desiredTile, maxTile));
+				const tileSize = Math.max(1, Math.min(desiredTile, maxTile));
 				const tileHalf = tileSize / 2;
 				const tileQuarter = tileSize / 4;
 				const heightUnit = parseFloat(getComputedStyle(root).getPropertyValue("--iso-unit")) || 4;
@@ -261,16 +228,15 @@
 				svg.setAttribute("height", `${stageHeight}`);
 				svg.setAttribute("viewBox", `0 0 ${boardWidth} ${stageHeight}`);
 				svg.setAttribute("aria-hidden", "true");
-				isoBoardEl.appendChild(svg);
 
-				const baseFill = "rgba(16, 28, 42, 0.95)";
-				const baseStroke = "rgba(0, 196, 255, 0.35)";
+				const baseFill = "var(--color-surface-raised)";
+				const baseStroke = "var(--color-border)";
 				const topFill = "var(--iso-box-top)";
 				const leftFill = "var(--iso-box-left)";
 				const rightFill = "var(--iso-box-right)";
-				const playerTop = "#ff4b4b";
-				const playerLeft = "#b61c2a";
-				const playerRight = "#8a0f1b";
+				const playerTop = "var(--color-primary)";
+				const playerLeft = "#a3be2c";
+				const playerRight = "#536b20";
 
 				function drawBlock(x, y, level, fills) {
 					const topY = y - blockHeight * (level + 1);
@@ -354,12 +320,10 @@
 					}
 				}
 
-				isoStatsEl.innerHTML = `
-					<h3>Board Stats</h3>
-					<span>Empty fields: ${countEmpty}</span>
-					<span>Box fields: ${countBox}</span>
-					<span>Total blocks: ${totalBlocks}</span>
-				`;
+				isoBoardEl.replaceChildren(svg);
+				emptyFields.value = countEmpty;
+				occupiedFields.value = countBox;
+				blockCount.value = totalBlocks;
 			}
 
 			function movePlayer(deltaRow, deltaCol) {
@@ -374,7 +338,8 @@
 				renderBoard();
 			}
 
-			document.addEventListener("keydown", (event) => {
+			function handleBoardKey(event) {
+				if (event.ctrlKey || event.metaKey || event.altKey) return;
 				const key = event.key.toLowerCase();
 				if (key === "e") {
 					event.preventDefault();
@@ -415,12 +380,12 @@
 					saveBoard();
 					renderBoard();
 				}
-			});
+			}
 
 			(async function init() {
-				seedBoard();
 				await loadBoard();
 				renderBoard();
+				document.addEventListener("keydown", handleBoardKey);
 			})();
 		</script>
 	</body>

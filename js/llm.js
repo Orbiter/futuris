@@ -601,92 +601,140 @@ function createLLM(options = {}) {
         }
         if (tools && tools.length) payload.tools = tools;
         if (toolChoice) payload.tool_choice = toolChoice;
+        if (options.thinking === false) {
+            payload.enable_thinking = false;
+            payload.reasoning_effort = 'none';
+        }
         return payload;
     };
 
-    const buildHeaders = (apiKey) => {
-        const headers = { 'Content-Type': 'application/json' };
+    const buildHeaders = (apiKey, hasJsonBody = true) => {
+        const headers = hasJsonBody ? { 'Content-Type': 'application/json' } : {};
         if (apiKey && apiKey !== '' && apiKey !== '_') {
             headers.Authorization = 'Bearer ' + apiKey;
         }
         return headers;
     };
 
-    // Streaming chat-completions: passes tokens to onToken and signals onDone.
-    const streamChat = async (options = {}) => {
-        const baseUrl = options.baseUrl;
-        const apiKey = options.apiKey;
-        if (!baseUrl) {
+    const requestChat = async (options) => {
+        if (!options.baseUrl) {
             throw new Error('Missing baseUrl');
         }
         const payload = buildChatPayload(options);
-        const response = await fetch(baseUrl + '/v1/chat/completions', {
+        const response = await fetch(options.baseUrl + '/v1/chat/completions', {
             method: 'POST',
-            headers: buildHeaders(apiKey),
+            headers: buildHeaders(options.apiKey),
             body: JSON.stringify(payload),
             signal: options.signal
         });
         if (!response.ok) {
-            throw new Error(`Error: ${response.status}`);
+            const data = await response.json().catch(() => null);
+            throw new Error(data?.error?.message || 'HTTP ' + response.status);
         }
-        if (!response.body) {
-            throw new Error('Error: Missing response body');
-        }
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let tokenCount = 0;
-        let startedAt = performance.now();
-        let firstTokenAt = 0;
-        while (true) {
-            const result = await reader.read();
-            if (result.done) break;
-            const lines = decoder.decode(result.value).split('\n');
-            for (let line of lines) {
-                line = line.replace(/^data: /, '').trim();
-                if (!line) continue;
-                if (line === '[DONE]') continue;
-                if (line.startsWith('error')) {
-                    if (typeof options.onError === 'function') options.onError(line);
-                    continue;
-                }
-                try {
-                    const json = JSON.parse(line);
-                    const delta = json.choices && json.choices[0] && json.choices[0].delta;
-                    if (delta && delta.content) {
-                        if (firstTokenAt === 0) firstTokenAt = performance.now();
-                        tokenCount += 1;
-                        if (typeof options.onToken === 'function') options.onToken(delta.content);
-                    }
-                } catch (error) {
-                    if (typeof options.onError === 'function') {
-                        options.onError('Error parsing JSON: ' + error.message);
-                    }
-                }
-            }
-        }
-        if (typeof options.onDone === 'function') {
-            options.onDone({ tokenCount, startedAt, firstTokenAt, endedAt: performance.now() });
-        }
-        return { tokenCount, startedAt, firstTokenAt, endedAt: performance.now() };
+        return response;
     };
 
-    // Non-streaming chat-completions, returns the full JSON response.
+    // Decode complete SSE events even when a response splits a line across chunks.
+    async function* readChatEvents(body) {
+        const reader = body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let data = [];
+        try {
+            while (true) {
+                const { value, done } = await reader.read();
+                buffer += decoder.decode(value, { stream: !done });
+                for (let end = buffer.match(/\r\n?|\n/); end; end = buffer.match(/\r\n?|\n/)) {
+                    const nextIndex = end.index + end[0].length;
+                    if (!done && end[0] === '\r' && nextIndex === buffer.length) break;
+                    const line = buffer.slice(0, end.index);
+                    buffer = buffer.slice(nextIndex);
+                    if (line.startsWith('data:')) {
+                        data.push(line.slice(5).replace(/^ /, ''));
+                    } else if (!line && data.length) {
+                        const event = data.join('\n');
+                        data = [];
+                        yield event;
+                    }
+                }
+                if (done) return;
+            }
+        } finally {
+            // Also closes the response when a [DONE] event arrives before EOF.
+            await reader.cancel().catch(() => {});
+            reader.releaseLock();
+        }
+    }
+
+    const streamChat = async (options = {}) => {
+        const startedAt = performance.now();
+        let tokenCount = 0;
+        let firstTokenAt = 0;
+        let content = '';
+        let finishReason;
+        const calls = new Map();
+        const response = await requestChat({ ...options, stream: true });
+
+        const addDelta = (delta) => {
+            if (delta.content) {
+                if (!firstTokenAt) firstTokenAt = performance.now();
+                tokenCount += 1;
+                content += delta.content;
+                options.onToken?.(delta.content);
+            }
+            for (const [position, part] of (delta.tool_calls || []).entries()) {
+                const index = part.index ?? position;
+                const call = calls.get(index) || { id: '', type: 'function', function: { name: '', arguments: '' } };
+                if (part.id) call.id = part.id;
+                call.function.name += part.function?.name || '';
+                call.function.arguments += part.function?.arguments || '';
+                calls.set(index, call);
+            }
+        };
+
+        try {
+            if (response.headers.get('content-type')?.includes('application/json')) {
+                const data = await response.json();
+                if (data.error) throw new Error(data.error.message || String(data.error));
+                const choice = data.choices?.[0];
+                if (!choice?.message) throw new Error('The model returned no message.');
+                addDelta(choice.message);
+                finishReason = choice.finish_reason;
+            } else {
+                if (!response.body) throw new Error('Missing response stream.');
+                let sawDone = false;
+                for await (const event of readChatEvents(response.body)) {
+                    if (event.trim() === '[DONE]') {
+                        sawDone = true;
+                        break;
+                    }
+                    const data = JSON.parse(event);
+                    if (data.error) throw new Error(data.error.message || String(data.error));
+                    const choice = data.choices?.[0];
+                    if (choice?.delta) addDelta(choice.delta);
+                    if (choice?.finish_reason) finishReason = choice.finish_reason;
+                }
+                if (!sawDone && !finishReason) throw new Error('The response stream was interrupted.');
+            }
+
+            const message = { role: 'assistant', content };
+            if (calls.size) {
+                message.tool_calls = Array.from(calls.keys()).sort((a, b) => a - b).map((index) => calls.get(index));
+                if (message.tool_calls.some((call) => !call.id || !call.function.name)) {
+                    throw new Error('The model returned an incomplete tool call.');
+                }
+            }
+            const result = { message, finishReason, tokenCount, startedAt, firstTokenAt, endedAt: performance.now() };
+            options.onDone?.(result);
+            return result;
+        } catch (error) {
+            if (!options.signal?.aborted) options.onError?.(error.message);
+            throw error;
+        }
+    };
+
     const completeChat = async (options = {}) => {
-        const baseUrl = options.baseUrl;
-        const apiKey = options.apiKey;
-        if (!baseUrl) {
-            throw new Error('Missing baseUrl');
-        }
-        const payload = buildChatPayload({ ...options, stream: false });
-        const response = await fetch(baseUrl + '/v1/chat/completions', {
-            method: 'POST',
-            headers: buildHeaders(apiKey),
-            body: JSON.stringify(payload),
-            signal: options.signal
-        });
-        if (!response.ok) {
-            throw new Error(`Error: ${response.status}`);
-        }
+        const response = await requestChat({ ...options, stream: false });
         return response.json();
     };
 
@@ -738,7 +786,7 @@ function createLLM(options = {}) {
         }
         const response = await fetch(baseUrl + '/v1/models', {
             method: 'GET',
-            headers: buildHeaders(apiKey),
+            headers: buildHeaders(apiKey, false),
             signal: options.signal
         });
         if (!response.ok) {
@@ -805,29 +853,69 @@ function createLLM(options = {}) {
     };
 }
 
+const LLM_CONFIG_PATH = "/config.json";
+const DEFAULT_OLLAMA_PORT = "11434";
+const DEFAULT_LLM_API_HOST = `http://localhost:${DEFAULT_OLLAMA_PORT}`;
+
+function normalizeLLMConfig(config) {
+    const host = typeof config?.apihost === "string" ? config.apihost.trim() : "";
+    return {
+        // The client adds /v1 when it builds the model and chat URLs.
+        apihost: host.replace(/\/+$/, "").replace(/([^/])\/v1$/, "$1") || DEFAULT_LLM_API_HOST,
+        systemprompt: typeof config?.systemprompt === "string" ? config.systemprompt : "",
+        model: typeof config?.model === "string" ? config.model : "",
+        // Older configs leave the reasoning setting to the API.
+        thinking: typeof config?.thinking === "boolean" ? config.thinking : undefined
+    };
+}
+
+async function writeLLMConfig(config) {
+    const vfs = await window.vfsReady;
+    await vfs.put(LLM_CONFIG_PATH, JSON.stringify(config, null, 2));
+}
+
+async function readLLMConfig() {
+    const vfs = await window.vfsReady;
+    let storedConfig;
+    try {
+        storedConfig = JSON.parse(await vfs.getasync(LLM_CONFIG_PATH));
+    } catch (error) {
+        if (error !== "Key not found" && !(error instanceof SyntaxError)) {
+            throw error;
+        }
+    }
+
+    const config = normalizeLLMConfig(storedConfig);
+    if (JSON.stringify(storedConfig) !== JSON.stringify(config)) {
+        await writeLLMConfig(config);
+    }
+    return config;
+}
+
 function initModelsPage() {
     const statusEl = document.getElementById("model-status");
+    const ollamaCorsHelp = document.getElementById("ollama-cors-help");
     const tableEl = document.getElementById("model-table");
     const tbodyEl = document.getElementById("model-table-body");
     const refreshButton = document.getElementById("refresh-models");
     const configForm = document.getElementById("llm-config-form");
     const apiHostInput = document.getElementById("apihost");
     const systemPromptInput = document.getElementById("systemprompt");
+    const thinkingInput = document.getElementById("thinking");
+    const saveButton = configForm?.querySelector('button[type="submit"]');
 
-    if (!statusEl || !tableEl || !tbodyEl || !configForm) {
+    if (!statusEl || !ollamaCorsHelp || !tableEl || !tbodyEl || !refreshButton || !saveButton ||
+        !apiHostInput || !systemPromptInput || !thinkingInput) {
         return;
     }
 
     const llm = createLLM();
-    const CONFIG_PATH = "/config.json";
-    const DEFAULT_API_HOST = "http://localhost:11434";
-    const DEFAULT_SYSTEM_PROMPT = "";
-    const DEFAULT_MODEL = "";
     let currentConfig = null;
+    let modelRequest;
 
     const setStatus = (message, isError = false) => {
         statusEl.textContent = message;
-        statusEl.style.color = isError ? "#ff3719" : "";
+        statusEl.style.color = isError ? "var(--color-accent-detail)" : "";
     };
 
     const formatCreated = (value) => {
@@ -852,23 +940,27 @@ function initModelsPage() {
 
     const renderModels = (models, selectedModel) => {
         tbodyEl.innerHTML = "";
-        models.forEach((model) => {
+        models.forEach((model, index) => {
             const row = document.createElement("tr");
             const selectCell = document.createElement("td");
             const nameCell = document.createElement("td");
             const ownerCell = document.createElement("td");
             const createdCell = document.createElement("td");
-            const modelId = model.id || model.name || "";
-            const checkbox = document.createElement("input");
+            const radio = document.createElement("input");
+            const label = document.createElement("label");
 
-            checkbox.type = "checkbox";
-            checkbox.dataset.modelId = modelId;
-            checkbox.checked = modelId !== "" && modelId === selectedModel;
-            selectCell.appendChild(checkbox);
+            radio.type = "radio";
+            radio.name = "chat-model";
+            radio.id = `model-choice-${index}`;
+            radio.value = model.id;
+            radio.checked = model.id === selectedModel;
+            selectCell.appendChild(radio);
 
-            nameCell.textContent = modelId || "—";
+            label.htmlFor = radio.id;
+            label.textContent = model.id;
+            nameCell.appendChild(label);
             ownerCell.textContent = model.owned_by || model.owner || "—";
-            createdCell.textContent = formatCreated(model.created || model.created_at);
+            createdCell.textContent = formatCreated(model.created ?? model.created_at);
 
             row.appendChild(selectCell);
             row.appendChild(nameCell);
@@ -878,132 +970,103 @@ function initModelsPage() {
         });
     };
 
-    const applyConfigToForm = (config) => {
-        if (!configForm) return;
-        if (apiHostInput) apiHostInput.value = config.apihost || DEFAULT_API_HOST;
-        if (systemPromptInput) systemPromptInput.value = config.systemprompt || "";
-    };
-
-    const normalizeConfig = (config) => {
-        const normalized = {
-            apihost:
-                typeof config.apihost === "string" && config.apihost.trim()
-                    ? config.apihost.trim()
-                    : DEFAULT_API_HOST,
-            systemprompt:
-                typeof config.systemprompt === "string" ? config.systemprompt : DEFAULT_SYSTEM_PROMPT,
-            model: typeof config.model === "string" ? config.model : DEFAULT_MODEL
-        };
-        return normalized;
-    };
-
-    const writeConfig = async (config) => {
-        const vfs = await window.vfsReady;
-        await vfs.put(CONFIG_PATH, JSON.stringify(config, null, 2));
-    };
-
-    const readConfig = async () => {
-        const vfs = await window.vfsReady;
-        let rawConfig = null;
-        try {
-            rawConfig = await vfs.getasync(CONFIG_PATH);
-        } catch (error) {
-            const initialConfig = normalizeConfig({});
-            await writeConfig(initialConfig);
-            return initialConfig;
-        }
-
-        try {
-            const parsed = JSON.parse(rawConfig);
-            const normalized = normalizeConfig(parsed || {});
-            if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
-                await writeConfig(normalized);
-            }
-            return normalized;
-        } catch (error) {
-            const repaired = normalizeConfig({});
-            await writeConfig(repaired);
-            return repaired;
-        }
-    };
-
     const loadModels = async () => {
+        modelRequest?.abort();
+        const request = new AbortController();
+        modelRequest = request;
         setStatus("Loading models...");
+        ollamaCorsHelp.hidden = true;
         tableEl.hidden = true;
         try {
-            currentConfig = await readConfig();
-            applyConfigToForm(currentConfig);
-            const response = await llm.listModels({ baseUrl: currentConfig.apihost });
-            const models = normalizeModels(response);
+            const config = await readLLMConfig();
+            if (request.signal.aborted) return;
+            currentConfig = config;
+            apiHostInput.value = config.apihost;
+            systemPromptInput.value = config.systemprompt;
+            thinkingInput.checked = config.thinking ?? true;
+            const apiHost = new URL(config.apihost, window.location.href);
+            const response = await llm.listModels({ baseUrl: config.apihost, signal: request.signal }).catch((error) => {
+                // Fetch reports CORS blocks and other network failures as TypeError.
+                if (!request.signal.aborted && error instanceof TypeError &&
+                    /^https?:$/.test(apiHost.protocol) && apiHost.port === DEFAULT_OLLAMA_PORT &&
+                    apiHost.origin !== window.location.origin) {
+                    ollamaCorsHelp.hidden = false;
+                }
+                throw error;
+            });
+            if (request.signal.aborted) return;
+            const models = normalizeModels(response).flatMap((model) => {
+                const id = model?.id || model?.name;
+                return typeof id === "string" && id.trim() ? [{ ...model, id }] : [];
+            });
             if (!models.length) {
-                setStatus("No models reported by the server.");
+                setStatus(`No models reported by ${config.apihost}.`);
                 return;
             }
-            renderModels(models, currentConfig.model);
-            setStatus(`Showing ${models.length} model${models.length === 1 ? "" : "s"}.`);
+            renderModels(models, config.model);
+            setStatus(`Showing ${models.length} model${models.length === 1 ? "" : "s"} from ${config.apihost}.`);
             tableEl.hidden = false;
         } catch (error) {
-            const message = error && error.message ? error.message : "Unknown error";
-            setStatus(`Failed to load models: ${message}`, true);
+            if (!request.signal.aborted) {
+                setStatus(`Failed to load models: ${error?.message || error}`, true);
+            }
         }
     };
 
-    if (refreshButton) {
-        refreshButton.addEventListener("click", () => {
-            loadModels();
-        });
-    }
+    const saveConfig = async (config, failureMessage) => {
+        const focusedControl = document.activeElement;
+        saveButton.disabled = true;
+        refreshButton.disabled = true;
+        tableEl.inert = true;
+        try {
+            await writeLLMConfig(config);
+            currentConfig = config;
+            return true;
+        } catch (error) {
+            setStatus(`${failureMessage}: ${error?.message || error}`, true);
+            return false;
+        } finally {
+            saveButton.disabled = false;
+            refreshButton.disabled = false;
+            tableEl.inert = false;
+            if (document.activeElement === document.body) {
+                focusedControl?.focus({ preventScroll: true });
+            }
+        }
+    };
 
-    if (configForm) {
-        configForm.addEventListener("submit", async (event) => {
-            event.preventDefault();
-            const nextConfig = normalizeConfig({
-                apihost: apiHostInput ? apiHostInput.value : DEFAULT_API_HOST,
-                systemprompt: systemPromptInput ? systemPromptInput.value : DEFAULT_SYSTEM_PROMPT,
-                model: currentConfig ? currentConfig.model : DEFAULT_MODEL
-            });
-            try {
-                await writeConfig(nextConfig);
-                applyConfigToForm(nextConfig);
-                currentConfig = nextConfig;
-            } catch (error) {
-                const message = error && error.message ? error.message : "Unknown error";
-                setStatus(`Failed to save config: ${message}`, true);
-                return;
-            }
-            loadModels();
-        });
-    }
+    refreshButton.addEventListener("click", loadModels);
 
-    if (tbodyEl) {
-        tbodyEl.addEventListener("change", async (event) => {
-            const checkbox = event.target;
-            if (!(checkbox instanceof HTMLInputElement) || checkbox.type !== "checkbox") {
-                return;
-            }
-            const modelId = checkbox.dataset.modelId || "";
-            if (checkbox.checked) {
-                Array.from(tbodyEl.querySelectorAll("input[type=\"checkbox\"]")).forEach((input) => {
-                    if (input !== checkbox) {
-                        input.checked = false;
-                    }
-                });
-            }
-            const nextModel = checkbox.checked ? modelId : DEFAULT_MODEL;
-            const nextConfig = normalizeConfig({
-                apihost: currentConfig ? currentConfig.apihost : DEFAULT_API_HOST,
-                systemprompt: currentConfig ? currentConfig.systemprompt : DEFAULT_SYSTEM_PROMPT,
-                model: nextModel
-            });
-            try {
-                await writeConfig(nextConfig);
-                currentConfig = nextConfig;
-            } catch (error) {
-                const message = error && error.message ? error.message : "Unknown error";
-                setStatus(`Failed to save model: ${message}`, true);
-            }
+    configForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (saveButton.disabled) return;
+        modelRequest?.abort();
+        const nextConfig = normalizeLLMConfig({
+            apihost: apiHostInput.value,
+            systemprompt: systemPromptInput.value,
+            model: currentConfig?.model,
+            thinking: thinkingInput.checked
         });
-    }
+        if (nextConfig.apihost !== currentConfig?.apihost) {
+            nextConfig.model = "";
+        }
+        if (await saveConfig(nextConfig, "Failed to save config")) {
+            loadModels();
+        }
+    });
+
+    tbodyEl.addEventListener("change", async (event) => {
+        const radio = event.target;
+        if (!radio.matches('input[name="chat-model"]:checked')) return;
+        const nextConfig = { ...currentConfig, model: radio.value };
+        if (await saveConfig(nextConfig, "Failed to save model")) {
+            setStatus(`${nextConfig.model} saved as the default model for Chat.`);
+        } else {
+            tbodyEl.querySelectorAll('input[name="chat-model"]').forEach((input) => {
+                input.checked = input.value === currentConfig.model;
+            });
+        }
+    });
 
     loadModels();
 }

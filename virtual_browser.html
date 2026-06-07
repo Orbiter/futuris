@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="color-scheme" content="dark" />
+		<title>Virtual Browser · Futuris</title>
+		<link rel="icon" href="icons/device-video-display.svg" />
+		<link rel="stylesheet" href="css/futuris.css?v=1f58c4f0" />
+		<link rel="stylesheet" href="css/vfs-preview.css" />
+		<script defer src="js/virtual-browser.js"></script>
+	</head>
+	<body id="preview-page">
+		<iframe id="site-menu" title="Pages" src="navigation.html"></iframe>
+		<main id="preview-browser">
+			<header>
+				<div>
+					<h1>Virtual Browser</h1>
+					<p id="preview-folder" aria-label="VFS folder" hidden></p>
+				</div>
+				<button id="preview-reload" type="button" disabled>Reload</button>
+			</header>
+			<div id="preview-notice">
+				<p id="preview-status" role="status">Starting preview…</p>
+				<pre id="preview-serve-command" hidden><code>python3 -m http.server 8000 --bind 127.0.0.1</code></pre>
+				<a id="preview-local-link" href="http://127.0.0.1:8000/vfs.html" hidden>Open VFS on localhost</a>
+			</div>
+			<iframe id="preview-frame" title="VFS website preview" hidden></iframe>
+		</main>
+	</body>
+</html>

@@ -1,0 +1,430 @@
+html:has(#chat-page) {
+	overflow: hidden;
+}
+
+#chat-page {
+	display: grid;
+	grid-template-rows: auto auto minmax(0, 1fr);
+	height: min(100dvh, var(--chat-viewport-height, 100dvh));
+	min-height: 0;
+	overflow: hidden;
+}
+
+#chat-page > #site-menu {
+	position: static;
+}
+
+#chat {
+	--chat-width: 50rem;
+	--chat-gutter: clamp(0.85rem, 3vw, 1.7rem);
+	display: grid;
+	grid-template-rows: minmax(0, 1fr) auto;
+	min-height: 0;
+}
+
+#chat [hidden] {
+	display: none;
+}
+
+.chat-header {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	column-gap: 0.8rem;
+}
+
+#chat-storage,
+.chat-shortcut {
+	margin: 0;
+	color: var(--color-muted);
+	font-size: 0.77rem;
+}
+
+#chat-status {
+	overflow-wrap: anywhere;
+}
+
+#chat-new {
+	grid-column: 2;
+	grid-row: 1 / span 2;
+	align-self: center;
+}
+
+#chat-new,
+#chat-latest,
+#chat-stop {
+	padding: 0.55rem 0.9rem;
+	border-color: var(--color-border);
+	background: var(--color-surface-raised);
+	color: var(--color-foreground);
+	font: 700 0.74rem/1.25 var(--font-mono);
+	text-transform: uppercase;
+	clip-path: var(--cut-corners);
+}
+
+#chat-new:hover:not(:disabled),
+#chat-latest:hover,
+#chat-stop:hover {
+	border-color: var(--color-primary);
+	color: var(--color-primary);
+}
+
+.chat-transcript {
+	position: relative;
+	display: grid;
+	grid-template-rows: minmax(0, 1fr);
+}
+
+#chat-scroll {
+	overflow: auto;
+	overscroll-behavior-y: contain;
+	scrollbar-gutter: stable both-edges;
+}
+
+#chat-scroll:focus-visible {
+	outline-offset: -2px;
+}
+
+#chat-scroll:has(#chat-log:empty) {
+	display: grid;
+	align-content: safe center;
+}
+
+#chat-empty {
+	--chat-banner-shape: polygon(0 0, 100% 0, 100% calc(100% - 22px), calc(100% - 22px) 100%, 0 100%);
+	position: relative;
+	isolation: isolate;
+	display: grid;
+	align-content: center;
+	width: min(68rem, 100% - 2 * var(--chat-gutter));
+	min-height: clamp(20rem, 46dvh, 27rem);
+	margin: 1.25rem auto;
+	padding: clamp(1.5rem, 4vw, 3.8rem);
+	background: var(--color-border);
+	clip-path: var(--chat-banner-shape);
+}
+
+#chat-empty::before,
+#chat-empty::after {
+	position: absolute;
+	pointer-events: none;
+	content: "";
+}
+
+#chat-empty::before {
+	z-index: -1;
+	inset: 1px;
+	background:
+		linear-gradient(90deg, #080b16f0, #080b16b0 35%, transparent 67%),
+		url("../assets/futuris-transceiver.webp") center / cover no-repeat #0d1326;
+	clip-path: var(--chat-banner-shape);
+}
+
+#chat-empty::after {
+	inset: 0.7rem;
+	background:
+		linear-gradient(var(--color-primary), var(--color-primary)) top left / 2.15rem 2px,
+		linear-gradient(var(--color-primary), var(--color-primary)) top left / 1px 1.24rem,
+		linear-gradient(var(--color-signal), var(--color-signal)) top right / 1.25rem 1px,
+		linear-gradient(var(--color-signal), var(--color-signal)) top right / 1px 1.25rem;
+	background-repeat: no-repeat;
+}
+
+#chat-empty > div {
+	width: min(100%, 32rem);
+}
+
+#chat-empty h2 {
+	margin-bottom: 1rem;
+	font-size: clamp(3.2rem, 5.65vw, 5.7rem);
+	font-style: italic;
+	line-height: 0.86;
+	letter-spacing: -0.025em;
+	text-transform: uppercase;
+}
+
+#chat-empty h2 span {
+	display: block;
+	color: var(--color-primary);
+}
+
+#chat-empty p {
+	max-width: 27ch;
+	margin-bottom: 0;
+	color: var(--color-text);
+}
+
+#chat-setup {
+	display: inline-block;
+	margin-top: 0.75rem;
+}
+
+#chat-log {
+	width: min(var(--chat-width), 100% - 2 * var(--chat-gutter));
+	margin-inline: auto;
+	padding-block: clamp(1.5rem, 4vh, 2.6rem);
+}
+
+#chat-log:empty {
+	padding: 0;
+}
+
+.chat-turn {
+	padding: 0;
+	border: 0;
+	background: transparent;
+}
+
+.chat-turn + .chat-turn {
+	margin-top: 2.25rem;
+}
+
+.chat-user {
+	width: fit-content;
+	max-width: min(84%, 39rem);
+	margin: 0 0 1.6rem auto;
+	padding: 0.65rem 1rem;
+	border: 1px solid var(--color-border);
+	border-inline-end: 2px solid var(--color-primary);
+	border-radius: var(--radius);
+	background: linear-gradient(120deg, var(--color-surface-raised), #182438);
+	color: var(--color-foreground);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.chat-assistant {
+	display: grid;
+	grid-template-columns: 1.85rem minmax(0, 1fr);
+	gap: 0.75rem;
+	align-items: start;
+}
+
+.chat-avatar {
+	display: grid;
+	place-items: center;
+	height: 1.85rem;
+	background: var(--color-primary);
+	clip-path: var(--cut-corners);
+}
+
+.chat-avatar::before {
+	width: 0.85rem;
+	height: 0.85rem;
+	background: var(--color-background);
+	clip-path: var(--brand-symbol);
+	content: "";
+}
+
+.chat-reply {
+	min-width: 0;
+	padding-inline-start: 0.8rem;
+	border-inline-start: 1px solid var(--color-line);
+	overflow-wrap: anywhere;
+}
+
+.chat-round > :last-child {
+	margin-bottom: 0;
+}
+
+.chat-round + .chat-round {
+	margin-top: 1rem;
+}
+
+.chat-round p,
+.chat-round li {
+	color: var(--color-foreground);
+}
+
+.chat-round :is(h1, h2, h3, h4, h5, h6) {
+	margin: 1.15em 0 0.45em;
+	letter-spacing: -0.02em;
+}
+
+.chat-round h1 { font-size: 1.55rem; }
+.chat-round h2 { font-size: 1.35rem; }
+.chat-round h3 { font-size: 1.15rem; }
+
+.chat-round > :first-child {
+	margin-top: 0;
+}
+
+.chat-round pre {
+	border-inline-start: 2px solid var(--color-signal);
+	overflow: auto;
+	overflow-wrap: normal;
+}
+
+.chat-round pre > code {
+	display: block;
+	width: max-content;
+	min-width: 100%;
+}
+
+.chat-round table {
+	display: block;
+	max-width: 100%;
+	overflow-x: auto;
+}
+
+.chat-tool {
+	margin: 0.75rem 0;
+	font-size: 0.84rem;
+}
+
+.chat-tool pre {
+	max-height: 18rem;
+	margin-bottom: 0;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.chat-note {
+	margin: 0.75rem 0 0;
+	color: var(--color-muted);
+	font-size: 0.85rem;
+}
+
+.chat-note:empty {
+	margin: 0;
+}
+
+.chat-note[data-error],
+#chat-status[data-error],
+#chat-storage {
+	color: var(--color-accent-detail);
+}
+
+#chat-latest {
+	position: absolute;
+	bottom: 1rem;
+	left: 50%;
+	translate: -50% 0;
+	box-shadow: 0 3px 18px rgb(0 0 0 / 35%);
+}
+
+#chat-latest span {
+	color: var(--color-primary);
+}
+
+.chat-footer {
+	padding: 0.65rem var(--chat-gutter) max(0.6rem, env(safe-area-inset-bottom));
+	border-top: 1px solid var(--color-line);
+	background: #090d17;
+	text-align: center;
+}
+
+#chat-form {
+	position: relative;
+	display: flex;
+	align-items: end;
+	gap: 0.55rem;
+	max-width: var(--chat-width);
+	margin: 0 auto;
+	padding: 0.45rem;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius);
+	background: linear-gradient(120deg, #182339, var(--color-background-box) 48%);
+}
+
+#chat-form::before {
+	position: absolute;
+	top: -1px;
+	left: 0.65rem;
+	width: 2rem;
+	height: 2px;
+	background: var(--color-signal);
+	content: "";
+}
+
+#chat-form:focus-within::before {
+	background: var(--color-primary);
+}
+
+#chat-form:focus-within {
+	border-color: var(--color-signal);
+}
+
+.chat-label {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+}
+
+#chat-input {
+	min-width: 0;
+	width: 100%;
+	min-height: 2.6rem;
+	max-height: min(11rem, 28dvh);
+	margin: 0;
+	padding: 0.55rem 0.55rem;
+	border: 0;
+	outline: none;
+	background: transparent;
+	line-height: 1.5;
+	resize: none;
+}
+
+#chat-send,
+#chat-stop {
+	flex: none;
+	min-height: 2.6rem;
+	font: 750 0.78rem/1.2 var(--font-mono);
+	text-transform: uppercase;
+	clip-path: var(--cut-corners);
+}
+
+#chat-send:focus-visible,
+#chat-stop:focus-visible,
+#chat-new:focus-visible,
+#chat-latest:focus-visible {
+	outline-offset: -3px;
+}
+
+#chat-send:focus-visible {
+	outline-color: var(--color-background);
+}
+
+.chat-shortcut,
+#chat-storage {
+	margin-top: 0.35rem;
+}
+
+@media (pointer: coarse) {
+	.chat-shortcut {
+		display: none;
+	}
+}
+
+@media (max-width: 43rem) {
+	#chat-new {
+		padding-inline: 0.55rem;
+	}
+
+	#chat-empty {
+		align-content: end;
+		min-height: clamp(15rem, 44dvh, 23rem);
+		margin-block: 0.7rem;
+		padding: 1rem 1.05rem 1.25rem;
+	}
+
+	#chat-empty::before {
+		background:
+			linear-gradient(0deg, #080b16 0 14%, #080b16df 43%, transparent 92%),
+			url("../assets/futuris-transceiver.webp") 69% center / cover no-repeat #0d1326;
+	}
+
+	#chat-empty h2 {
+		font-size: clamp(2.4rem, 9vw, 4.1rem);
+		margin-bottom: 0.55rem;
+	}
+
+	.chat-user {
+		max-width: 93%;
+	}
+
+	.chat-assistant {
+		gap: 0.55rem;
+	}
+}

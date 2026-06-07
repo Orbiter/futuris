@@ -3,84 +3,105 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<title>Futuris Classless Style Demo</title>
-		<link rel="stylesheet" href="css/futuris.css" />
+		<meta name="color-scheme" content="dark" />
+		<title>Futuris — Cyberpunk CSS</title>
+
+		<link rel="stylesheet" href="css/futuris.css?v=1f58c4f0" />
 	</head>
 	<body>
-		<header>
-			<nav id="site-nav" aria-label="Pages"></nav>
-			<h1>Futuris Classless Style</h1>
+		<iframe id="site-menu" title="Pages" src="navigation.html#index"></iframe>
+		<header id="hero">
+			<small>Classless CSS</small>
+			<h1>FUTURIS</h1>
 			<p>
-				A compact demo page that shows headings, links, tables, code, and
-				forms using the classless stylesheet.
+				A cyberpunk stylesheet for semantic HTML. Explore it through live interfaces,
+				data displays, and games.
 			</p>
-			<section aria-label="Status modules">
-				<article>
-					<span aria-hidden="true">
-						<img src="icons/status-network-transmit-receive.svg" alt="" />
-					</span>
-					<div>
-						<p>Signal</p>
-						<p><strong>Live uplink</strong></p>
-						<p>0.97ms latency</p>
-					</div>
-				</article>
-				<article>
-					<span aria-hidden="true">
-						<img src="icons/device-computer.svg" alt="" />
-					</span>
-					<div>
-						<p>Core</p>
-						<p><strong>Neon kernel</strong></p>
-						<p>3 nodes active</p>
-					</div>
-				</article>
-				<article>
-					<span aria-hidden="true">
-						<img src="icons/status-security-high.svg" alt="" />
-					</span>
-					<div>
-						<p>Shield</p>
-						<p><strong>Encrypted</strong></p>
-						<p>99.9% integrity</p>
-					</div>
-				</article>
-			</section>
+			<nav aria-label="Get started">
+				<a href="chat.html">Open chat <span aria-hidden="true">↗</span></a>
+				<a href="#layout">Browse examples <span aria-hidden="true">↓</span></a>
+			</nav>
 		</header>
 
+		<nav id="shortcuts" aria-label="Featured pages">
+			<a href="reference.html">
+				<img src="icons/application-preferences-desktop-theme.svg" alt="" />
+				<span><strong>Reference</strong><small>Palette, inputs, and text styles</small></span>
+				<span aria-hidden="true">↗</span>
+			</a>
+			<a href="dashboard.html">
+				<img src="icons/application-utilities-system-monitor.svg" alt="" />
+				<span><strong>Dashboard</strong><small>Explore the forecast and metrics</small></span>
+				<span aria-hidden="true">↗</span>
+			</a>
+			<a href="invaders.html">
+				<img src="icons/device-input-gaming.svg" alt="" />
+				<span><strong>Invaders</strong><small>Play the vector arcade demo</small></span>
+				<span aria-hidden="true">↗</span>
+			</a>
+		</nav>
+
 		<div id="layout">
-			<nav>
+			<nav aria-label="On this page">
 				<h2>Sections</h2>
-				<ul id="toc"></ul>
+				<ul id="toc">
+					<li>
+						<a href="#typography">Typography</a>
+						<ul>
+							<li><a href="#subheading">Subheading</a></li>
+						</ul>
+					</li>
+					<li><a href="#link-style">Link Style</a></li>
+					<li>
+						<a href="#lists">Lists</a>
+						<ul>
+							<li><a href="#unordered">Unordered</a></li>
+							<li><a href="#ordered">Ordered</a></li>
+						</ul>
+					</li>
+					<li>
+						<a href="#code-blocks">Code Blocks</a>
+						<ul>
+							<li><a href="#inline-and-block-code">Inline and block code</a></li>
+						</ul>
+					</li>
+					<li>
+						<a href="#tables">Tables</a>
+						<ul>
+							<li><a href="#palette-tokens">Palette tokens</a></li>
+						</ul>
+					</li>
+					<li>
+						<a href="#form-elements">Form Elements</a>
+						<ul>
+							<li><a href="#inputs">Inputs</a></li>
+						</ul>
+					</li>
+					<li>
+						<a href="#details">Details</a>
+						<ul>
+							<li><a href="#expandable-notes">Expandable notes</a></li>
+						</ul>
+					</li>
+				</ul>
 			</nav>
 			<main>
 				<section>
-					<h2>
-						<img src="icons/action-insert-link.svg" alt="" />
-						Link Style
-					</h2>
-					<p>
-						This is a <a href="https://example.com">link example</a> with
-						<code>inline code</code> inside.
-					</p>
-				</section>
-				<section>
-					<h2>
+					<h2 id="typography">
 						<img src="icons/action-format-text-bold.svg" alt="" />
 						Typography
 					</h2>
 					<p>
-						Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec
-						vulputate, velit sit amet laoreet sodales, arcu risus pulvinar
-						nibh, at vulputate odio sapien in ante.
+						Headings, paragraphs, and quotes share the same typographic scale
+						and spacing across the demos.
 					</p>
 					<blockquote>
 						<p>
-							Classless doesn’t mean characterless. Bold colors and sharp
-							contrast can still shine through plain elements.
+							Semantic HTML gives each element a purpose. A shared stylesheet
+							gives it a consistent voice.
 						</p>
 					</blockquote>
-					<h3>Subheading</h3>
+					<h3 id="subheading">Subheading</h3>
 					<p>
 						Use <strong>bold</strong>, <em>italics</em>, and
 						<mark>highlighted text</mark> to emphasize content.
@@ -89,17 +110,28 @@
 				</section>
 
 				<section>
-					<h2>
+					<h2 id="link-style">
+						<img src="icons/action-insert-link.svg" alt="" />
+						Link Style
+					</h2>
+					<p>
+						This is a <a href="https://example.com">link example</a> with
+						<code>inline code</code> inside.
+					</p>
+				</section>
+
+				<section>
+					<h2 id="lists">
 						<img src="icons/action-list-add.svg" alt="" />
 						Lists
 					</h2>
-					<h3>Unordered</h3>
+					<h3 id="unordered">Unordered</h3>
 					<ul>
-						<li>Signal green accents</li>
-						<li>Neon secondary palette</li>
-						<li>Display typography for headings</li>
+						<li>Acid-yellow accents</li>
+						<li>Midnight-blue surfaces</li>
+						<li>High-contrast typography</li>
 					</ul>
-					<h3>Ordered</h3>
+					<h3 id="ordered">Ordered</h3>
 					<ol>
 						<li>Build the structure</li>
 						<li>Apply the classless theme</li>
@@ -108,11 +140,11 @@
 				</section>
 
 				<section>
-					<h2>
+					<h2 id="code-blocks">
 						<img src="icons/application-utilities-terminal.svg" alt="" />
 						Code Blocks
 					</h2>
-					<h3>Inline and block code</h3>
+					<h3 id="inline-and-block-code">Inline and block code</h3>
 					<p>Inline code: <code>npm run build</code></p>
 					<pre><code>function greet(name) {
   return `Hello, ${name}!`;
@@ -123,11 +155,11 @@ console.log(greet("Futuris"));
 				</section>
 
 				<section>
-					<h2>
+					<h2 id="tables">
 						<img src="icons/mime-x-office-spreadsheet.svg" alt="" />
 						Tables
 					</h2>
-					<h3>Palette tokens</h3>
+					<h3 id="palette-tokens">Palette tokens</h3>
 					<table>
 						<thead>
 							<tr>
@@ -138,30 +170,30 @@ console.log(greet("Futuris"));
 						</thead>
 						<tbody>
 							<tr>
-								<td>Primary</td>
-								<td>#00ff00</td>
+								<td data-swatch="primary">Primary</td>
+								<td>#DAFC3D</td>
 								<td>Highlights</td>
 							</tr>
 							<tr>
-								<td>Secondary</td>
-								<td>#9673ff</td>
+								<td data-swatch="foreground">Foreground</td>
+								<td>#F1F4FF</td>
 								<td>Headings</td>
 							</tr>
 							<tr>
-								<td>Additional</td>
-								<td>#ff3719</td>
-								<td>Alerts</td>
+								<td data-swatch="secondary">Secondary</td>
+								<td>#202A41</td>
+								<td>Surfaces</td>
 							</tr>
 						</tbody>
 					</table>
 				</section>
 
 				<section>
-					<h2>
+					<h2 id="form-elements">
 						<img src="icons/action-document-new.svg" alt="" />
 						Form Elements
 					</h2>
-					<h3>Inputs</h3>
+					<h3 id="inputs">Inputs</h3>
 					<form>
 						<label for="name">Name</label>
 						<input id="name" name="name" type="text" placeholder="Ada Lovelace" />
@@ -181,11 +213,11 @@ console.log(greet("Futuris"));
 				</section>
 
 				<section>
-					<h2>
+					<h2 id="details">
 						<img src="icons/action-view-fullscreen.svg" alt="" />
 						Details
 					</h2>
-					<h3>Expandable notes</h3>
+					<h3 id="expandable-notes">Expandable notes</h3>
 					<details>
 						<summary>Expandable notes</summary>
 						<p>
@@ -197,6 +229,5 @@ console.log(greet("Futuris"));
 			</main>
 		</div>
 
-		<script src="js/futuris.js"></script>
 	</body>
 </html>
